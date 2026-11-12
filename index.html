@@ -1,0 +1,913 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Brachflächen-Finder Österreich</title>
+<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<script src="https://unpkg.com/pmtiles@3.2.1/dist/pmtiles.js"></script>
+<style>
+  :root {
+    --bg: #f6f4ef; --panel: #fffdf8; --ink: #1f2a24; --muted: #5d6a62; --line: #ddd8cc;
+    --accent: #2f6b4f; --accent-ink: #fff; --warn: #b4491f;
+    --ok: #2e9a5b; --err: #c8372d; --mix: #d99a1c; --off: #b9b4a6;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body { font: 15px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; color: var(--ink); background: var(--bg); }
+  #app { display: grid; grid-template-columns: 360px 1fr; height: 100%; }
+  #panel { background: var(--panel); border-right: 1px solid var(--line); overflow-y: auto; padding: 14px 16px 28px; }
+  #map { position: relative; min-height: 0; }
+  h1 { font-size: 19px; margin: 0 0 2px; letter-spacing: -0.01em; }
+  .sub { color: var(--muted); margin: 0 0 12px; font-size: 13.5px; }
+  h2 { font-size: 12.5px; text-transform: uppercase; letter-spacing: .07em; color: var(--muted); margin: 18px 0 8px; }
+  .card { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; margin-bottom: 8px; background: #fff; }
+  .row { display: flex; align-items: center; gap: 8px; }
+  .row label { flex: 1; font-weight: 600; cursor: pointer; }
+  .step { display: inline-grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; background: var(--accent); color: var(--accent-ink); font-size: 12px; font-weight: 700; flex: none; }
+  .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--off); flex: none; }
+  .dot.ok { background: var(--ok); } .dot.err { background: var(--err); } .dot.mix { background: var(--mix); } .dot.load { background: #7aa7d9; }
+  .hint { color: var(--muted); font-size: 13px; margin: 6px 0 0; }
+  .ctl { margin-top: 8px; display: grid; gap: 6px; }
+  .ctl label { font-size: 13px; color: var(--muted); display: grid; gap: 3px; }
+  select, input[type=text], input[type=search] { font: inherit; padding: 6px 8px; border: 1px solid var(--line); border-radius: 7px; background: #fff; color: var(--ink); width: 100%; }
+  input[type=range] { width: 100%; accent-color: var(--accent); }
+  input[type=checkbox], input[type=radio] { accent-color: var(--accent); width: 16px; height: 16px; flex: none; }
+  .legend { display: grid; gap: 5px; margin-top: 8px; }
+  .legend .row label { font-weight: 400; }
+  .sw { width: 16px; height: 12px; border-radius: 3px; flex: none; border: 1px solid rgba(0,0,0,.25); }
+  .sw.line { height: 0; border: 0; border-top: 3px solid #ffd400; border-radius: 0; box-shadow: 0 0 0 1px rgba(0,0,0,.35); }
+  button, .btn { font: inherit; padding: 6px 10px; border-radius: 7px; border: 1px solid var(--accent); background: var(--accent); color: var(--accent-ink); cursor: pointer; text-decoration: none; display: inline-block; }
+  button.ghost, .btn.ghost { background: #fff; color: var(--accent); }
+  .links { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .links .btn { font-size: 13px; padding: 5px 9px; }
+  table.kv { border-collapse: collapse; width: 100%; font-size: 13px; margin-top: 6px; }
+  table.kv td { padding: 3px 4px; border-top: 1px solid var(--line); vertical-align: top; overflow-wrap: anywhere; }
+  table.kv td:first-child { color: var(--muted); width: 38%; }
+  .search { display: flex; gap: 6px; } .search input { flex: 1; min-width: 0; } .search button { flex: none; }
+  .grid2 { grid-template-columns: 1fr 1fr; }
+  textarea { font: inherit; font-size: 13.5px; width: 100%; padding: 8px; border: 1px solid var(--line); border-radius: 7px; margin-top: 8px; }
+  .list { display: grid; gap: 6px; margin-top: 6px; }
+  .item { border: 1px solid var(--line); border-radius: 8px; padding: 8px; display: grid; gap: 6px; font-size: 13.5px; }
+  .item b { font-weight: 600; }
+  .item .meta { color: var(--muted); font-size: 12.5px; }
+  .item .links { margin-top: 0; }
+  button.cand { text-align: left; background: #fff; color: var(--ink); border-color: var(--line); font-size: 13.5px; }
+  button.cand .meta { display: block; color: var(--muted); font-size: 12.5px; }
+  .tag { display: inline-block; padding: 1px 7px; border-radius: 999px; font-size: 12px; background: #fde6dc; color: #8a3413; margin-right: 6px; }
+  .tag.w { background: #f6efc4; color: #6a5a07; }
+  .tag.b { background: #eadcff; color: #4c1d95; }
+  #results { display: grid; gap: 4px; margin-top: 6px; }
+  #results button { text-align: left; background: #fff; color: var(--ink); border-color: var(--line); font-size: 13px; }
+  ol.how { margin: 0; padding-left: 18px; font-size: 13.5px; } ol.how li { margin-bottom: 5px; }
+  .note { font-size: 12.5px; color: var(--muted); border-left: 3px solid var(--line); padding-left: 8px; margin-top: 10px; }
+  #toggle { display: none; }
+  #zoomhint { position: absolute; left: 50%; transform: translateX(-50%); top: 10px; z-index: 2; background: rgba(31,42,36,.88); color: #fff; padding: 5px 10px; border-radius: 999px; font-size: 13px; display: none; pointer-events: none; }
+  #fatal { position: absolute; inset: 0; display: none; place-items: center; padding: 24px; text-align: center; background: var(--bg); z-index: 5; }
+  @media (max-width: 760px) {
+    #app { display: block; height: 100vh; height: 100dvh; }
+    #map { height: 100vh; height: 100dvh; }
+    #panel { position: fixed; left: 0; right: 0; bottom: 0; height: 62vh; height: 62dvh; z-index: 4; border-right: 0; border-top: 1px solid var(--line); border-radius: 14px 14px 0 0; box-shadow: 0 -8px 24px rgba(0,0,0,.25); transform: translateY(105%); transition: transform .2s; padding: 14px 14px calc(84px + env(safe-area-inset-bottom)); overscroll-behavior: contain; }
+    #panel.open { transform: none; }
+    #toggle { display: block; position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(22px + env(safe-area-inset-bottom)); z-index: 5; box-shadow: 0 4px 14px rgba(0,0,0,.35); padding: 11px 22px; border-radius: 999px; font-size: 16px; font-weight: 600; }
+    select, input[type=text], input[type=search] { font-size: 16px; padding: 9px 10px; }
+    input[type=checkbox], input[type=radio] { width: 20px; height: 20px; }
+    .legend { gap: 2px; } .legend .row, .card > .row { min-height: 36px; }
+    input[type=range] { height: 30px; }
+    .links .btn { font-size: 15px; padding: 9px 13px; }
+    #zoomhint { top: 12px; max-width: 72vw; text-align: center; }
+    .sheet-open #toggle { left: auto; right: 10px; transform: none; bottom: calc(62vh + 10px); bottom: calc(62dvh + 10px); padding: 8px 16px; font-size: 14px; }
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <aside id="panel">
+    <h1>Brachflächen-Finder</h1>
+    <p class="sub">Verwilderte Grundstücke in Österreich am Bildschirm aufspüren: Luftbild, Kataster, Agrarförderung und Street View in einer Karte.</p>
+
+    <form id="qf" class="search"><input type="search" id="q" placeholder="Ort oder Adresse suchen" aria-label="Ort suchen" enterkeyhint="search"><button type="submit">Suchen</button></form>
+    <div id="results"></div>
+
+    <h2>Schichten</h2>
+
+    <div class="card">
+      <div class="row"><span class="dot" data-dot="base"></span><label>Grundkarte</label></div>
+      <div class="legend">
+        <div class="row"><input type="radio" name="base" id="b-ortho" value="ortho" checked><label for="b-ortho">Luftbild aktuell</label></div>
+        <div class="row"><input type="radio" name="base" id="b-grau" value="grau"><label for="b-grau">Karte grau</label></div>
+        <div class="row"><input type="radio" name="base" id="b-none" value="none"><label for="b-none">keine</label></div>
+      </div>
+      <h2 style="margin-top:12px">Namen und Grenzen</h2>
+      <div class="legend">
+        <div class="row"><input type="checkbox" id="l-overlay" checked><label for="l-overlay">Straßen- und Gassennamen, Orte, Stadtbezirke, Hausnummern</label></div>
+        <div class="row"><input type="checkbox" id="l-pg" checked><span class="sw line" style="border-top-color:#fff"></span><label for="l-pg">Gemeindegrenzen</label></div>
+        <div class="row"><input type="checkbox" id="l-kg"><span class="sw line" style="border-top:3px dashed #ff4fd8;box-shadow:none"></span><label for="l-kg">Katastralgemeinden mit Namen</label></div>
+      </div>
+      <p class="hint">Quelle: basemap.at, die amtliche Grundkarte der Bundesländer; Grenzen vom BEV. Die Katastralgemeinde (KG) ist die Einheit, nach der Grundbuch und Kataster geordnet sind.</p>
+    </div>
+
+    <div class="card">
+      <div class="row"><span class="step">1</span><input type="checkbox" id="l-wayback"><label for="l-wayback">Luftbild früher</label><span class="dot" data-dot="wayback"></span></div>
+      <div class="ctl">
+        <label>Stand der Bildsammlung
+          <select id="wb-release"><option>wird geladen…</option></select>
+        </label>
+        <label>Deckkraft <input type="range" id="wb-op" min="0" max="100" value="100"></label>
+      </div>
+      <button type="button" class="ghost" id="wb-flip" style="margin-top:8px">Alt ↔ Neu umschalten</button>
+      <p class="hint" id="wb-date">Aufnahmedatum: Schicht einschalten.</p>
+      <p class="hint">Regler hin und her ziehen: Wo früher Beete und Wege waren und heute Gebüsch ist, wird nicht mehr gepflegt. Quelle: Esri World Imagery Wayback. Der „Stand“ ist das Veröffentlichungsdatum, nicht das Flugdatum; viele Stände zeigen dasselbe Bild.</p>
+    </div>
+
+    <div class="card">
+      <div class="row"><span class="step">2</span><input type="checkbox" id="l-gst" checked><label for="l-gst">Grundstücksgrenzen</label><span class="dot" data-dot="kataster"></span></div>
+      <div class="legend">
+        <div class="row"><span class="sw line"></span><label>Grenze laut Kataster (ab Zoom 14)</label></div>
+        <div class="row"><input type="checkbox" id="l-gnr" checked><label for="l-gnr">Grundstücksnummern (ab Zoom 16)</label></div>
+      </div>
+      <h2 style="margin-top:12px">Nutzung laut Kataster</h2>
+      <div class="legend">
+        <div class="row"><input type="checkbox" id="n-57" checked><span class="sw" style="background:#e4572e"></span><label for="n-57">Verbuschte Flächen</label></div>
+        <div class="row"><input type="checkbox" id="n-52"><span class="sw" style="background:#8fd17f"></span><label for="n-52">Gärten</label></div>
+        <div class="row"><input type="checkbox" id="n-48"><span class="sw" style="background:#ecd86a"></span><label for="n-48">Äcker, Wiesen, Weiden</label></div>
+        <div class="row"><input type="checkbox" id="n-56"><span class="sw" style="background:#2e7d4f"></span><label for="n-56">Wald</label></div>
+        <div class="row"><input type="checkbox" id="n-41"><span class="sw" style="background:#c9667a"></span><label for="n-41">Gebäude</label></div>
+      </div>
+      <p class="hint">Quelle: BEV-Kataster, tagesaktuell. „Verbuscht“ ist die amtliche Einstufung des Vermessungsamts und oft Jahre alt. Ein Garten im Kataster, der am Luftbild zugewachsen ist, ist der interessantere Treffer.</p>
+    </div>
+
+    <div class="card">
+      <div class="row"><span class="step">3</span><input type="checkbox" id="l-invekos"><label for="l-invekos">Landwirtschaftlich gemeldet (INVEKOS)</label><span class="dot" data-dot="invekos"></span></div>
+      <div class="ctl">
+        <label>Antragsjahr
+          <select id="iv-select"><option value="inspire_feldstuecke_2021">2021</option></select>
+        </label>
+        <label>Deckkraft <input type="range" id="iv-op" min="0" max="100" value="55"></label>
+      </div>
+      <div class="legend">
+        <div class="row"><span class="sw" style="background:#228b22"></span><label>gemeldetes Feldstück (sichtbar ab Zoom 12)</label></div>
+      </div>
+      <p class="hint">Grün ist, was ein Betrieb bei der Agrarmarkt Austria für Förderungen gemeldet hat. Bleibt eine Wiese oder ein Acker außerhalb des Orts ohne Grün, bewirtschaftet die Fläche vermutlich niemand mit Förderung. Ein Hinweis, kein Beweis: Gärten, Wald und Bauland sind nie gemeldet.</p>
+    </div>
+
+    <div class="card" id="agrar-card">
+      <div class="row"><label>Landwirtschaft im Detail (Agraratlas)</label><span class="dot" data-dot="agrar"></span></div>
+      <div class="legend">
+        <div class="row"><input type="checkbox" id="a-bio"><span class="sw" style="background:#00c2a8"></span><label for="a-bio">Biologisch bewirtschaftete Felder</label></div>
+        <div class="row"><input type="checkbox" id="a-brache"><span class="sw" style="background:#b05cff"></span><label for="a-brache">Gemeldete Brachen (Grünbrache, Grünlandbrache)</label></div>
+        <div class="row"><input type="checkbox" id="a-schlag"><span class="sw line" style="border-top-color:#fff"></span><label for="a-schlag">Alle Schläge mit Kultur (Name ab Zoom 15)</label></div>
+        <div class="row"><input type="checkbox" id="a-natura"><span class="sw" style="background:#ffe600"></span><label for="a-natura">Natura 2000 (gelb FFH, braun Vogelschutz)</label></div>
+        <div class="row"><input type="checkbox" id="a-feucht"><span class="sw" style="background:#74d8f9"></span><label for="a-feucht">Feuchtgebiete und Torfflächen</label></div>
+        <div class="row"><input type="checkbox" id="a-hang"><label for="a-hang">Hangneigung</label></div>
+      </div>
+      <p class="hint" id="agrar-hint">Felder sichtbar ab Zoom 12. Ein Schlag ist ein Stück Feld mit einer Kultur. „Biologisch" heißt: im Förderprogramm ÖPUL als Bio-Fläche beantragt (Antrag 2025). Eine gemeldete Brache ist meist bewusst stillgelegt und gefördert und hat einen Bewirtschafter; verlassen ist sie deshalb nicht. Quelle: INSPIRE Agraratlas des Landwirtschaftsministeriums, Daten der Agrarmarkt Austria.</p>
+    </div>
+
+    <div class="card">
+      <div class="row"><input type="checkbox" id="l-hq"><label for="l-hq">Hochwasser HQ100</label><span class="dot" data-dot="hq"></span></div>
+      <div class="legend">
+        <div class="row"><span class="sw" style="background:#4aa3ff"></span><label>Überflutungsfläche bei 100-jährlichem Hochwasser (ab Zoom 11)</label></div>
+      </div>
+      <p class="hint">HQ100 ist ein Hochwasser, das statistisch einmal in 100 Jahren kommt. Auf solchen Flächen darf in Niederösterreich kein Bauland und kein Kleingarten neu gewidmet werden. Quelle: Bund (Umweltbundesamt), nicht parzellenscharf. Die Flächenwidmung selbst gibt es nicht als frei einbindbare Karte; dafür führt beim angeklickten Punkt ein Link in den NÖ Atlas.</p>
+    </div>
+
+    <h2>Angeklickter Punkt</h2>
+    <div class="card" id="point">
+      <div class="row"><span class="step">4</span><label>Vor Ort ansehen und Eigentümer klären</label></div>
+      <p class="hint" id="pt-empty">Klick in die Karte: Dann erscheinen hier Grundstücksnummer, Einlagezahl und Katastralgemeinde sowie die Links zu Street View und Kataster.</p>
+      <div id="pt-body" hidden>
+        <table class="kv" id="pt-table"></table>
+        <div class="links">
+          <button type="button" id="pt-save">Merken</button>
+          <button type="button" class="ghost" id="pt-copy">Daten kopieren</button>
+          <button type="button" class="ghost" id="pt-letter">Brief-Vorlage</button>
+        </div>
+        <div id="letter-box" hidden>
+          <textarea id="letter" rows="12" aria-label="Brief-Vorlage"></textarea>
+          <div class="links"><button type="button" class="ghost" id="letter-copy">Brief kopieren</button></div>
+        </div>
+        <div class="links" id="pt-links"></div>
+        <p class="hint">Mit Katastralgemeinde und Einlagezahl (EZ) bekommst du beim Bezirksgericht oder online einen Grundbuchauszug. Dort steht der Eigentümer.</p>
+      </div>
+    </div>
+
+    <h2>Kandidaten im Ausschnitt</h2>
+    <div class="card">
+      <p class="hint" style="margin-top:0">Sucht im sichtbaren Kartenausschnitt (ab Zoom 14) nach verbuschten Flächen, nach Äckern oder Wiesen ohne INVEKOS-Meldung und nach gemeldeten Brachen. Leere Felder bedeuten: kein Filter.</p>
+      <div class="ctl grid2">
+        <label>Mindestfläche (m²) <input type="text" inputmode="numeric" id="f-area" value="300"></label>
+        <label>Bahnhof höchstens (m) <input type="text" inputmode="numeric" id="f-rail" placeholder="z. B. 2000"></label>
+        <label>Bushaltestelle höchstens (m) <input type="text" inputmode="numeric" id="f-bus" placeholder="z. B. 600"></label>
+        <label>Wald höchstens (m) <input type="text" inputmode="numeric" id="f-wald" placeholder="z. B. 300"></label>
+      </div>
+      <div class="links"><button type="button" id="cand-run">Kandidaten suchen</button></div>
+      <p class="hint" id="cand-status"></p>
+      <div id="cand-list" class="list"></div>
+    </div>
+
+    <h2>Merkliste <span id="merk-count"></span></h2>
+    <div class="card">
+      <p class="hint" id="merk-empty" style="margin-top:0">Noch nichts gemerkt. Parzelle antippen und „Merken" wählen. Die Liste bleibt nur in diesem Browser auf diesem Gerät.</p>
+      <div id="merk-list" class="list"></div>
+      <div class="links">
+        <button type="button" class="ghost" id="merk-csv">Als Tabelle speichern (CSV)</button>
+        <button type="button" class="ghost" id="merk-copy">Tabelle kopieren</button>
+      </div>
+      <p class="hint" id="merk-status"></p>
+    </div>
+
+    <h2>So gehst du vor</h2>
+    <div class="card">
+      <ol class="how">
+        <li>Gebiet suchen und auf Zoom 16 bis 18 gehen.</li>
+        <li>„Luftbild früher“ einschalten und mit der Deckkraft gegen das aktuelle Bild blenden.</li>
+        <li>Grenzen und „Verbuschte Flächen“ zeigen dir, welche Parzelle betroffen ist.</li>
+        <li>Außerhalb des Orts INVEKOS dazuschalten: gemeldet oder nicht?</li>
+        <li>Parzelle anklicken, in Street View Zaun, Zufahrt und Briefkasten ansehen.</li>
+        <li>Gute Funde merken; die Merkliste lässt sich als Tabelle speichern.</li>
+      </ol>
+      <p class="note">Punkt neben dem Schichtnamen: grün = lädt, gelb = teilweise, rot = der Server liefert nichts, grau = aus.</p>
+      <p class="note">Verwildert heißt nicht verfügbar. Fast jedes Grundstück hat einen Eigentümer. Alle Daten ohne Gewähr.</p>
+    </div>
+  </aside>
+
+  <main id="map">
+    <div id="zoomhint">Für Grundstücksgrenzen näher heranzoomen</div>
+    <div id="fatal"><div><strong>Die Kartenbibliothek konnte nicht geladen werden.</strong><br>Die Seite braucht eine Internetverbindung und muss direkt im Browser geöffnet sein, nicht in einer Vorschau.</div></div>
+  </main>
+</div>
+<button id="toggle" type="button">Schichten &amp; Suche</button>
+
+<script>
+(function () {
+  'use strict';
+  var $ = function (id) { return document.getElementById(id); };
+  if (!window.maplibregl) { $('fatal').style.display = 'grid'; return; }
+
+  // ---------- Konfiguration ----------
+  var BM = function (layer, ext) {
+    return ['https://mapsneu.wien.gv.at/basemap/' + layer + '/normal/google3857/{z}/{y}/{x}.' + ext];
+  };
+  var KAT_TILES = 'https://kataster.bev.gv.at/tiles/kataster/{z}/{x}/{y}.pbf';
+  var KAT_GLYPHS = 'https://kataster.bev.gv.at/styles/fonts/{fontstack}/{range}.pbf';
+  var IV_WMS = 'https://inspire.lfrz.gv.at/009501/wms';
+  var WB_CONFIG = 'https://s3-us-west-2.amazonaws.com/config.maptiles.arcgis.com/waybackconfig.json';
+  var WB_FALLBACK = {
+    '10': { itemTitle: 'World Imagery (Wayback 2014-02-20)', itemURL: 'https://wayback.maptiles.arcgis.com/arcgis/rest/services/World_Imagery/WMTS/1.0.0/default028mm/MapServer/tile/10/{level}/{row}/{col}', metadataLayerUrl: 'https://metadata.maptiles.arcgis.com/arcgis/rest/services/World_Imagery_Metadata_2014_r01/MapServer' },
+    '56102': { itemTitle: 'World Imagery (Wayback 2023-12-07)', itemURL: 'https://wayback.maptiles.arcgis.com/arcgis/rest/services/World_Imagery/WMTS/1.0.0/default028mm/MapServer/tile/56102/{level}/{row}/{col}', metadataLayerUrl: 'https://metadata.maptiles.arcgis.com/arcgis/rest/services/World_Imagery_Metadata_2023_r11/MapServer' }
+  };
+  var NUTZ = {
+    57: { name: 'Verbuschte Fläche', color: '#e4572e', op: 0.55 },
+    52: { name: 'Garten', color: '#8fd17f', op: 0.45 },
+    48: { name: 'Acker, Wiese oder Weide', color: '#ecd86a', op: 0.4 },
+    56: { name: 'Wald', color: '#2e7d4f', op: 0.45 },
+    41: { name: 'Gebäude', color: '#c9667a', op: 0.6 }
+  };
+
+  var NS_NAME = { 40: 'Landwirtschaftlich genutzte Grundfläche', 41: 'Gebäude', 42: 'Parkplatz', 48: 'Acker, Wiese oder Weide', 52: 'Garten', 53: 'Weingarten', 54: 'Alpe', 55: 'Krummholzfläche', 56: 'Wald', 57: 'Verbuschte Fläche', 58: 'Forststraße', 59: 'Fließendes Gewässer', 60: 'Stehendes Gewässer', 61: 'Feuchtgebiet', 62: 'Vegetationsarme Fläche', 63: 'Betriebsfläche', 64: 'Gewässerrandfläche', 65: 'Verkehrsrandfläche', 72: 'Friedhof', 83: 'Gebäudenebenfläche', 84: 'Abbaufläche, Halde oder Deponie', 87: 'Fels- und Geröllfläche', 88: 'Gletscher', 92: 'Schienenverkehrsanlage', 95: 'Straßenverkehrsanlage', 96: 'Freizeitfläche' };
+
+  // ---------- gespeicherte Ansicht ----------
+  var view = { center: [16.3205, 48.3052], zoom: 15 };
+  try {
+    var saved = JSON.parse(localStorage.getItem('brach-view') || 'null');
+    if (saved && Array.isArray(saved.center) && typeof saved.zoom === 'number') view = saved;
+  } catch (e) {}
+
+  // ---------- Karte ----------
+  var layers = [
+    { id: 'grau', type: 'raster', source: 'grau', layout: { visibility: 'none' } },
+    { id: 'ortho', type: 'raster', source: 'ortho' },
+    { id: 'anchor-imagery', type: 'background', paint: { 'background-opacity': 0 } }
+  ];
+  Object.keys(NUTZ).forEach(function (ns) {
+    layers.push({
+      id: 'nfl-' + ns, type: 'fill', source: 'kataster', 'source-layer': 'nfl', minzoom: 14,
+      filter: ['==', ['to-number', ['get', 'ns'], -1], Number(ns)],
+      layout: { visibility: $('n-' + ns).checked ? 'visible' : 'none' },
+      paint: { 'fill-color': NUTZ[ns].color, 'fill-opacity': NUTZ[ns].op }
+    });
+  });
+  layers.push(
+    { id: 'pg-hit', type: 'fill', source: 'kataster', 'source-layer': 'pg', minzoom: 6, paint: { 'fill-opacity': 0 } },
+    { id: 'kg-hit', type: 'fill', source: 'kataster', 'source-layer': 'kg', paint: { 'fill-opacity': 0 } },
+    { id: 'nfl-hit', type: 'fill', source: 'kataster', 'source-layer': 'nfl', minzoom: 14, paint: { 'fill-opacity': 0 } },
+    { id: 'gst-hit', type: 'fill', source: 'kataster', 'source-layer': 'gst', minzoom: 14, paint: { 'fill-opacity': 0 } },
+    { id: 'gst-case', type: 'line', source: 'kataster', 'source-layer': 'gst', minzoom: 14, paint: { 'line-color': '#1a1a1a', 'line-width': 2.4, 'line-opacity': 0.55 } },
+    { id: 'gst-line', type: 'line', source: 'kataster', 'source-layer': 'gst', minzoom: 14, paint: { 'line-color': '#ffd400', 'line-width': 1.1 } },
+    { id: 'cand-line', type: 'line', source: 'cand', paint: { 'line-color': '#ff3df2', 'line-width': 2.5 } },
+    { id: 'sel-line', type: 'line', source: 'sel', paint: { 'line-color': '#00e5ff', 'line-width': 3 } },
+    { id: 'pg-line', type: 'line', source: 'kataster', 'source-layer': 'pg', minzoom: 6, paint: { 'line-color': '#ffffff', 'line-width': 2.5, 'line-opacity': 0.9 } },
+    { id: 'kg-line', type: 'line', source: 'kataster', 'source-layer': 'kg', layout: { visibility: 'none' }, paint: { 'line-color': '#ff4fd8', 'line-width': 2, 'line-dasharray': [3, 2] } },
+    { id: 'overlay', type: 'raster', source: 'overlay' },
+    { id: 'kg-name', type: 'symbol', source: 'kataster', 'source-layer': 'kg', minzoom: 11,
+      layout: { visibility: 'none', 'text-field': ['concat', 'KG ', ['to-string', ['get', 'kg']]], 'text-font': ['Roboto Bold'], 'text-size': 13, 'text-padding': 60 },
+      paint: { 'text-color': '#ffd0f5', 'text-halo-color': '#3a0a31', 'text-halo-width': 1.5 } },
+    { id: 'gnr', type: 'symbol', source: 'kataster', 'source-layer': 'gnr', minzoom: 16,
+      layout: { 'text-field': ['to-string', ['get', 'gnr']], 'text-font': ['Roboto Bold'], 'text-size': 11 },
+      paint: { 'text-color': '#fff7c2', 'text-halo-color': '#111', 'text-halo-width': 1.3 } },
+    { id: 'merk-pt', type: 'circle', source: 'merk', paint: { 'circle-radius': 7, 'circle-color': '#ff2fd0', 'circle-stroke-color': '#fff', 'circle-stroke-width': 2 } }
+  );
+
+  // ---------- Agraratlas (eine PMTiles-Datei mit Vektordaten des Ministeriums) ----------
+  var HAS_AG = false;
+  try { if (window.pmtiles) { maplibregl.addProtocol('pmtiles', new pmtiles.Protocol().tile); HAS_AG = true; } } catch (e) {}
+  var agLayers = HAS_AG ? [
+    { id: 'ag-feucht', type: 'fill', source: 'agrar', 'source-layer': 'bdfl_l34_feucht_torfgebiete', layout: { visibility: 'none' }, paint: { 'fill-color': '#74d8f9', 'fill-opacity': 0.5 } },
+    { id: 'ag-natura', type: 'fill', source: 'agrar', 'source-layer': 'natura2000', layout: { visibility: 'none' }, paint: { 'fill-color': ['match', ['get', 'gebietsart'], 'FFH', '#ffe600', '#b43200'], 'fill-opacity': 0.3 } },
+    { id: 'ag-brache', type: 'fill', source: 'agrar', 'source-layer': 'invekos_schlaege_polygon', minzoom: 12, filter: ['in', 'BRACHE', ['to-string', ['get', 'snar_bezeichnung']]], layout: { visibility: 'none' }, paint: { 'fill-color': '#b05cff', 'fill-opacity': 0.5, 'fill-outline-color': '#4c1d95' } },
+    { id: 'ag-bio', type: 'fill', source: 'agrar', 'source-layer': 'invekos_schlaege_bio_polygon', minzoom: 12, layout: { visibility: 'none' }, paint: { 'fill-color': '#00c2a8', 'fill-opacity': 0.45, 'fill-outline-color': '#00695c' } },
+    { id: 'ag-schlag-line', type: 'line', source: 'agrar', 'source-layer': 'invekos_schlaege_polygon', minzoom: 12, layout: { visibility: 'none' }, paint: { 'line-color': '#ffffff', 'line-width': 1.2 } },
+    { id: 'ag-schlag-hit', type: 'fill', source: 'agrar', 'source-layer': 'invekos_schlaege_polygon', minzoom: 12, paint: { 'fill-opacity': 0 } },
+    { id: 'ag-bio-hit', type: 'fill', source: 'agrar', 'source-layer': 'invekos_schlaege_bio_polygon', minzoom: 12, paint: { 'fill-opacity': 0 } },
+    { id: 'ag-natura-hit', type: 'fill', source: 'agrar', 'source-layer': 'natura2000', minzoom: 12, paint: { 'fill-opacity': 0 } }
+  ] : [];
+  var ids = function () { return layers.map(function (l) { return l.id; }); };
+  Array.prototype.splice.apply(layers, [ids().indexOf('pg-hit'), 0].concat(agLayers));
+  layers.splice(ids().indexOf('anchor-imagery') + 1, 0, { id: 'hang', type: 'raster', source: 'hang', layout: { visibility: 'none' }, paint: { 'raster-opacity': 0.6 } });
+  if (HAS_AG) layers.push({ id: 'ag-schlag-name', type: 'symbol', source: 'agrar', 'source-layer': 'invekos_schlaege_polygon', minzoom: 15,
+    layout: { visibility: 'none', 'text-field': ['to-string', ['get', 'snar_bezeichnung']], 'text-font': ['Roboto Bold'], 'text-size': 10, 'text-padding': 12 },
+    paint: { 'text-color': '#ffffff', 'text-halo-color': '#112233', 'text-halo-width': 1.4 } });
+  var SOURCES = {
+    ortho: { type: 'raster', tiles: BM('bmaporthofoto30cm', 'jpeg'), tileSize: 256, maxzoom: 20, attribution: '© <a href="https://basemap.at">basemap.at</a>' },
+    grau: { type: 'raster', tiles: BM('bmapgrau', 'png'), tileSize: 256, maxzoom: 20, attribution: '© <a href="https://basemap.at">basemap.at</a>' },
+    overlay: { type: 'raster', tiles: BM('bmapoverlay', 'png'), tileSize: 256, maxzoom: 20 },
+    hang: { type: 'raster', tileSize: 512, minzoom: 9, maxzoom: 14, tiles: ['https://inspire.lfrz.gv.at/000504/ows?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetMap&FORMAT=image%2Fpng&TRANSPARENT=true&LAYERS=neigungsklassen&STYLES=&WIDTH=512&HEIGHT=512&CRS=EPSG%3A3857&BBOX={bbox-epsg-3857}'] },
+    kataster: { type: 'vector', tiles: [KAT_TILES], minzoom: 0, maxzoom: 16, attribution: '© <a href="https://bev.gv.at">BEV</a>' },
+    sel: { type: 'geojson', data: { type: 'FeatureCollection', features: [] } },
+    cand: { type: 'geojson', data: { type: 'FeatureCollection', features: [] } },
+    merk: { type: 'geojson', data: { type: 'FeatureCollection', features: [] } }
+  };
+  if (HAS_AG) SOURCES.agrar = { type: 'vector', url: 'pmtiles://https://agraratlas.inspire.gv.at/map/tiles/agraratlas.pmtiles', attribution: 'Agraratlas © BMLUK, AMA' };
+
+  var map = new maplibregl.Map({
+    container: 'map',
+    center: view.center, zoom: view.zoom, minZoom: 6, maxZoom: 20,
+    maxBounds: [[8.0, 45.8], [18.3, 49.6]],
+    style: {
+      version: 8, glyphs: KAT_GLYPHS,
+      sources: SOURCES,
+      layers: layers
+    }
+  });
+  map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right');
+  if (window.isSecureContext && navigator.geolocation) {
+    map.addControl(new maplibregl.GeolocateControl({ positionOptions: { enableHighAccuracy: true }, trackUserLocation: false }), 'top-right');
+  }
+  map.addControl(new maplibregl.ScaleControl({ unit: 'metric' }), 'top-left');
+
+  // ---------- Mobil: Panel als ausziehbares Blatt ----------
+  var isMobile = function () { return window.matchMedia('(max-width: 760px)').matches; };
+  function setPanel(open) {
+    $('panel').classList.toggle('open', open);
+    document.body.classList.toggle('sheet-open', open);
+    $('toggle').textContent = open ? 'Karte zeigen' : 'Schichten & Suche';
+  }
+
+  // ---------- Status-Punkte ----------
+  var stat = {}; // sourceId -> {ok, err}
+  var DOT_SOURCES = { base: ['ortho', 'grau'], wayback: ['wayback'], kataster: ['kataster'], invekos: ['invekos'], hq: ['hq'], agrar: ['agrar'] };
+  function isOn(key) {
+    if (key === 'base') return document.querySelector('input[name=base]:checked').value !== 'none';
+    if (key === 'wayback') return $('l-wayback').checked;
+    if (key === 'invekos') return $('l-invekos').checked;
+    if (key === 'hq') return $('l-hq').checked;
+    if (key === 'agrar') return HAS_AG;
+    if (key === 'kataster') return true;
+    return false;
+  }
+  function paintDots() {
+    Object.keys(DOT_SOURCES).forEach(function (key) {
+      var el = document.querySelector('[data-dot="' + key + '"]');
+      var ok = 0, err = 0;
+      DOT_SOURCES[key].forEach(function (s) { if (stat[s]) { ok += stat[s].ok; err += stat[s].err; } });
+      var cls = 'dot';
+      if (isOn(key)) cls += err && !ok ? ' err' : err && ok ? ' mix' : ok ? ' ok' : ' load';
+      el.className = cls;
+      el.title = ok + ' Kacheln geladen, ' + err + ' Fehler';
+    });
+  }
+  function resetStat(s) { stat[s] = { ok: 0, err: 0 }; paintDots(); }
+  map.on('error', function (e) {
+    var s = e.sourceId || (e.source && e.source.id);
+    if (!s) return;
+    stat[s] = stat[s] || { ok: 0, err: 0 }; stat[s].err++; paintDots();
+  });
+  map.on('sourcedata', function (e) {
+    if (!e.sourceId || !e.tile || e.tile.state !== 'loaded') return;
+    stat[e.sourceId] = stat[e.sourceId] || { ok: 0, err: 0 }; stat[e.sourceId].ok++; paintDots();
+  });
+
+  // ---------- Schichten schalten ----------
+  function vis(id, on) { if (map.getLayer(id)) map.setLayoutProperty(id, 'visibility', on ? 'visible' : 'none'); }
+  function applyBase() {
+    var v = document.querySelector('input[name=base]:checked').value;
+    vis('ortho', v === 'ortho'); vis('grau', v === 'grau'); paintDots();
+  }
+  Array.prototype.forEach.call(document.querySelectorAll('input[name=base]'), function (r) { r.addEventListener('change', applyBase); });
+  $('l-overlay').addEventListener('change', function () { vis('overlay', this.checked); });
+  $('l-pg').addEventListener('change', function () { vis('pg-line', this.checked); });
+  $('l-kg').addEventListener('change', function () { vis('kg-line', this.checked); vis('kg-name', this.checked); });
+  $('l-gst').addEventListener('change', function () { vis('gst-line', this.checked); vis('gst-case', this.checked); });
+  $('l-gnr').addEventListener('change', function () { vis('gnr', this.checked); });
+  var AG_TOGGLES = { 'a-bio': ['ag-bio'], 'a-brache': ['ag-brache'], 'a-schlag': ['ag-schlag-line', 'ag-schlag-name'], 'a-natura': ['ag-natura'], 'a-feucht': ['ag-feucht'], 'a-hang': ['hang'] };
+  Object.keys(AG_TOGGLES).forEach(function (id) {
+    $(id).addEventListener('change', function () { var on = this.checked; AG_TOGGLES[id].forEach(function (l) { vis(l, on); }); });
+    if (!HAS_AG && id !== 'a-hang') $(id).disabled = true;
+  });
+  if (!HAS_AG) $('agrar-hint').textContent = 'Die Agraratlas-Daten konnten nicht geladen werden (Zusatzbibliothek fehlt). Nur die Hangneigung ist verfügbar.';
+  Object.keys(NUTZ).forEach(function (ns) {
+    $('n-' + ns).addEventListener('change', function () { vis('nfl-' + ns, this.checked); });
+  });
+
+  // ---------- Luftbild früher (Esri Wayback) ----------
+  var wb = { items: {}, current: null, timer: null };
+  function wbDate(title) { var m = /(\d{4}-\d{2}-\d{2})/.exec(title || ''); return m ? m[1] : ''; }
+  function wbFill(cfg) {
+    wb.items = cfg;
+    var list = Object.keys(cfg).map(function (k) { return { num: k, date: wbDate(cfg[k].itemTitle) }; })
+      .filter(function (x) { return x.date; })
+      .sort(function (a, b) { return a.date < b.date ? -1 : 1; });
+    // je Jahr den letzten Stand anbieten, das hält die Liste kurz
+    var perYear = {};
+    list.forEach(function (x) { perYear[x.date.slice(0, 4)] = x; });
+    var sel = $('wb-release'); sel.textContent = '';
+    Object.keys(perYear).sort().forEach(function (y) {
+      var o = document.createElement('option'); o.value = perYear[y].num; o.textContent = perYear[y].date; sel.appendChild(o);
+    });
+    if (sel.options.length) { sel.selectedIndex = 0; wb.current = sel.value; }
+  }
+  function wbApply() {
+    if (map.getLayer('wayback')) map.removeLayer('wayback');
+    if (map.getSource('wayback')) map.removeSource('wayback');
+    if (!$('l-wayback').checked || !wb.current || !wb.items[wb.current]) { paintDots(); $('wb-date').textContent = 'Aufnahmedatum: Schicht einschalten.'; return; }
+    var url = wb.items[wb.current].itemURL.replace('{level}', '{z}').replace('{row}', '{y}').replace('{col}', '{x}');
+    resetStat('wayback');
+    map.addSource('wayback', { type: 'raster', tiles: [url], tileSize: 256, maxzoom: 17, attribution: 'Esri World Imagery Wayback' });
+    map.addLayer({ id: 'wayback', type: 'raster', source: 'wayback', paint: { 'raster-opacity': $('wb-op').value / 100 } }, 'anchor-imagery');
+    wbMeta();
+  }
+  function wbMeta() {
+    clearTimeout(wb.timer);
+    if (!$('l-wayback').checked || !wb.current) return;
+    wb.timer = setTimeout(function () {
+      var it = wb.items[wb.current]; if (!it || !it.metadataLayerUrl) return;
+      var z = Math.max(10, Math.min(23, Math.round(map.getZoom())));
+      var c = map.getCenter();
+      var geom = encodeURIComponent(JSON.stringify({ x: c.lng, y: c.lat, spatialReference: { wkid: 4326 } }));
+      var u = it.metadataLayerUrl + '/' + (23 - z) + '/query?f=json&where=1%3D1&outFields=SRC_DATE2,NICE_DESC,SRC_RES&returnGeometry=false&geometryType=esriGeometryPoint&spatialRel=esriSpatialRelIntersects&geometry=' + geom;
+      $('wb-date').textContent = 'Aufnahmedatum: wird abgefragt…';
+      fetch(u).then(function (r) { return r.json(); }).then(function (j) {
+        var a = j && j.features && j.features[0] && j.features[0].attributes;
+        if (!a || !a.SRC_DATE2) { $('wb-date').textContent = 'Aufnahmedatum in Kartenmitte: nicht verfügbar.'; return; }
+        var d = new Date(a.SRC_DATE2).toISOString().slice(0, 10);
+        $('wb-date').textContent = 'Aufnahmedatum in Kartenmitte: ' + d + (a.NICE_DESC ? ' (' + a.NICE_DESC + ')' : '');
+      }).catch(function () { $('wb-date').textContent = 'Aufnahmedatum in Kartenmitte: nicht abrufbar.'; });
+    }, 700);
+  }
+  $('l-wayback').addEventListener('change', wbApply);
+  // Schneller Wechsel zwischen altem und aktuellem Luftbild: Veränderungen springen so ins Auge
+  $('wb-flip').addEventListener('click', function () {
+    if (!$('l-wayback').checked) { $('l-wayback').checked = true; wbApply(); this.textContent = 'Zeigt: alt · umschalten'; return; }
+    if (!map.getLayer('wayback')) return;
+    var hidden = map.getLayoutProperty('wayback', 'visibility') === 'none';
+    vis('wayback', hidden);
+    this.textContent = hidden ? 'Zeigt: alt · umschalten' : 'Zeigt: neu · umschalten';
+  });
+  $('wb-release').addEventListener('change', function () { wb.current = this.value; wbApply(); });
+  $('wb-op').addEventListener('input', function () { if (map.getLayer('wayback')) map.setPaintProperty('wayback', 'raster-opacity', this.value / 100); });
+  fetch(WB_CONFIG).then(function (r) { return r.json(); }).then(wbFill).catch(function () { wbFill(WB_FALLBACK); });
+
+  // ---------- INVEKOS (WMS) ----------
+  function ivApply() {
+    if (map.getLayer('invekos')) map.removeLayer('invekos');
+    if (map.getSource('invekos')) map.removeSource('invekos');
+    if (!$('l-invekos').checked) { paintDots(); return; }
+    var name = $('iv-select').value; if (!name) return;
+    var url = IV_WMS + '?service=WMS&version=1.3.0&request=GetMap&layers=' + encodeURIComponent(name) +
+      '&styles=&format=image%2Fpng&transparent=true&crs=EPSG%3A3857&width=512&height=512&bbox={bbox-epsg-3857}';
+    resetStat('invekos');
+    map.addSource('invekos', { type: 'raster', tiles: [url], tileSize: 512, attribution: 'INVEKOS © AMA' });
+    map.addLayer({ id: 'invekos', type: 'raster', source: 'invekos', minzoom: 12, paint: { 'raster-opacity': $('iv-op').value / 100 } }, 'nfl-' + Object.keys(NUTZ)[0]);
+  }
+  $('l-invekos').addEventListener('change', ivApply);
+  $('iv-select').addEventListener('change', ivApply);
+  $('iv-op').addEventListener('input', function () { if (map.getLayer('invekos')) map.setPaintProperty('invekos', 'raster-opacity', this.value / 100); });
+  // Jahrgänge vom Server holen; scheitert das, bleibt 2021 stehen.
+  // Nur die Feldstücke: Sie sind grün gefüllt. Die "Schläge" zeichnet der Server als dünne graue Linien, die man am Luftbild nicht sieht.
+  fetch(IV_WMS + '?service=WMS&version=1.3.0&request=GetCapabilities').then(function (r) { return r.text(); }).then(function (t) {
+    var doc = new DOMParser().parseFromString(t, 'text/xml');
+    var names = Array.prototype.map.call(doc.getElementsByTagName('Name'), function (n) { return (n.textContent || '').trim(); })
+      .filter(function (n) { return /^inspire_feldstuecke_20\d{2}/i.test(n); });
+    names = names.filter(function (n, i) { return names.indexOf(n) === i; });
+    if (!names.length) return;
+    var year = function (n) { var m = /(20\d{2})(?:[_-](\d))?/.exec(n); return m ? Number(m[1]) * 10 + Number(m[2] || 0) : 0; };
+    names.sort(function (a, b) { return year(b) - year(a); });
+    var sel = $('iv-select'); sel.textContent = '';
+    names.forEach(function (n) {
+      var m = /(20\d{2})(?:[_-](\d))?/.exec(n);
+      var o = document.createElement('option'); o.value = n; o.textContent = m[1] + (m[2] ? ' (Stand ' + m[2] + ')' : ''); sel.appendChild(o);
+    });
+    if ($('l-invekos').checked) ivApply();
+  }).catch(function () {});
+
+  // ---------- Hochwasser HQ100 (WMS des Bundes) ----------
+  var HQ_WMS = 'https://inspire.lfrz.gv.at/000801/wms';
+  var HQ_LAYER = 'Hochwasserueberflutungsflaechen HQ100';
+  function hqApply() {
+    if (map.getLayer('hq')) map.removeLayer('hq');
+    if (map.getSource('hq')) map.removeSource('hq');
+    if (!$('l-hq').checked) { paintDots(); return; }
+    var url = HQ_WMS + '?service=WMS&version=1.3.0&request=GetMap&layers=' + encodeURIComponent(HQ_LAYER) +
+      '&styles=&format=image%2Fpng&transparent=true&crs=EPSG%3A3857&width=512&height=512&bbox={bbox-epsg-3857}';
+    resetStat('hq');
+    map.addSource('hq', { type: 'raster', tiles: [url], tileSize: 512, attribution: 'Hochwasser © Umweltbundesamt' });
+    map.addLayer({ id: 'hq', type: 'raster', source: 'hq', minzoom: 11, paint: { 'raster-opacity': 0.6 } }, 'nfl-' + Object.keys(NUTZ)[0]);
+  }
+  $('l-hq').addEventListener('change', hqApply);
+
+  // ---------- Rechen-Helfer ----------
+  var R_EARTH = 6371008.8, RAD = Math.PI / 180;
+  function hav(a, b) {
+    var s = Math.sin((b[1] - a[1]) * RAD / 2), t = Math.sin((b[0] - a[0]) * RAD / 2);
+    return 2 * R_EARTH * Math.asin(Math.sqrt(s * s + Math.cos(a[1] * RAD) * Math.cos(b[1] * RAD) * t * t));
+  }
+  function polys(geom) { return geom.type === 'Polygon' ? [geom.coordinates] : geom.type === 'MultiPolygon' ? geom.coordinates : []; }
+  // Fläche in m² und Schwerpunkt eines Polygons in Längen-/Breitengraden
+  function areaCentroid(geom) {
+    var A = 0, cx = 0, cy = 0;
+    polys(geom).forEach(function (poly) {
+      poly.forEach(function (ring, ri) {
+        var a = 0, x = 0, y = 0;
+        for (var i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+          var f = ring[j][0] * ring[i][1] - ring[i][0] * ring[j][1];
+          a += f; x += (ring[j][0] + ring[i][0]) * f; y += (ring[j][1] + ring[i][1]) * f;
+        }
+        a /= 2; if (!a) return;
+        var s = Math.abs(a) * (ri === 0 ? 1 : -1);
+        A += s; cx += x / (6 * a) * s; cy += y / (6 * a) * s;
+      });
+    });
+    if (A <= 0) return null;
+    var lat = cy / A;
+    return { area: A * RAD * RAD * R_EARTH * R_EARTH * Math.cos(lat * RAD), c: [cx / A, lat] };
+  }
+  function inPoly(pt, geom) {
+    return polys(geom).some(function (poly) {
+      var inside = false;
+      poly.forEach(function (ring, ri) {
+        var c = false;
+        for (var i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+          if ((ring[i][1] > pt[1]) !== (ring[j][1] > pt[1]) &&
+              pt[0] < (ring[j][0] - ring[i][0]) * (pt[1] - ring[i][1]) / (ring[j][1] - ring[i][1]) + ring[i][0]) c = !c;
+        }
+        if (ri === 0) inside = c; else if (c) inside = false;
+      });
+      return inside;
+    });
+  }
+  function merc(lng, lat) { return [lng * 20037508.34 / 180, Math.log(Math.tan((90 + lat) * Math.PI / 360)) / RAD * 20037508.34 / 180]; }
+  function fmtM(d) { return d === Infinity || d == null ? '–' : d < 1000 ? Math.round(d / 10) * 10 + ' m' : (d / 1000).toFixed(1).replace('.', ',') + ' km'; }
+  function fmtA(a) { return Math.round(a).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.') + ' m²'; }
+  function num(id) { var v = parseFloat(String($(id).value).replace(',', '.')); return isFinite(v) && v > 0 ? v : null; }
+
+  // WMS-Bild holen und als Pixel lesen: so lässt sich prüfen, ob an einer Stelle etwas gezeichnet ist
+  function wmsPixels(base, layer, bbox, w, h) {
+    var url = base + '?service=WMS&version=1.3.0&request=GetMap&layers=' + encodeURIComponent(layer) +
+      '&styles=&format=image%2Fpng&transparent=true&crs=EPSG%3A3857&width=' + w + '&height=' + h + '&bbox=' + bbox.join(',');
+    return fetch(url).then(function (r) { if (!r.ok) throw new Error('WMS ' + r.status); return r.blob(); })
+      .then(function (b) { return createImageBitmap(b); })
+      .then(function (bmp) {
+        var cv = document.createElement('canvas'); cv.width = w; cv.height = h;
+        var x = cv.getContext('2d'); x.drawImage(bmp, 0, 0);
+        return x.getImageData(0, 0, w, h);
+      });
+  }
+  function wmsHit(base, layer, lng, lat) {
+    var c = merc(lng, lat), r = 6;
+    return wmsPixels(base, layer, [c[0] - r, c[1] - r, c[0] + r, c[1] + r], 8, 8).then(function (img) {
+      for (var i = 3; i < img.data.length; i += 4) if (img.data[i] > 0) return true;
+      return false;
+    });
+  }
+
+  // Haltestellen aus OpenStreetMap (Overpass-Abfrage), kurz zwischengespeichert
+  var ovCache = null;
+  function stops(lng, lat, railR, busR) {
+    if (ovCache && hav(ovCache.c, [lng, lat]) < 300 && ovCache.railR >= railR && ovCache.busR >= busR) return Promise.resolve(ovCache.els);
+    var q = '[out:json][timeout:20];(node[railway~"^(station|halt)$"](around:' + Math.round(railR) + ',' + lat + ',' + lng + ');' +
+      'node[highway=bus_stop](around:' + Math.round(busR) + ',' + lat + ',' + lng + '););out body 800;';
+    return fetch('https://overpass-api.de/api/interpreter?data=' + encodeURIComponent(q))
+      .then(function (r) { if (!r.ok) throw new Error('Overpass ' + r.status); return r.json(); })
+      .then(function (j) { ovCache = { c: [lng, lat], railR: railR, busR: busR, els: j.elements || [] }; return ovCache.els; });
+  }
+  function nearest(els, pt, rail) {
+    var best = null;
+    els.forEach(function (e) {
+      if (!!(e.tags && e.tags.railway) !== rail) return;
+      var d = hav(pt, [e.lon, e.lat]);
+      if (!best || d < best.d) best = { d: d, name: (e.tags && e.tags.name) || '' };
+    });
+    return best;
+  }
+  // Abstand zum nächsten Wald laut Kataster (nur aus den gerade geladenen Kacheln)
+  function forestFeatures() { return map.querySourceFeatures('kataster', { sourceLayer: 'nfl', filter: ['==', ['to-number', ['get', 'ns'], -1], 56] }); }
+  function forestDist(pt, feats) {
+    var best = Infinity;
+    for (var k = 0; k < feats.length; k++) {
+      var g = feats[k].geometry;
+      if (inPoly(pt, g)) return 0;
+      polys(g).forEach(function (poly) {
+        poly[0].forEach(function (v) {
+          if (Math.abs(v[0] - pt[0]) > 0.05 || Math.abs(v[1] - pt[1]) > 0.03) return;
+          var d = hav(pt, v); if (d < best) best = d;
+        });
+      });
+    }
+    return best;
+  }
+  function copyText(text, statusEl, okMsg) {
+    var done = function (ok) { if (statusEl) statusEl.textContent = ok ? okMsg : 'Kopieren nicht möglich. Text bitte von Hand markieren.'; };
+    try { navigator.clipboard.writeText(text).then(function () { done(true); }, function () { done(false); }); } catch (e) { done(false); }
+  }
+
+  // ---------- Klick: Grundstück und Links ----------
+  var marker = new maplibregl.Marker({ color: '#00b8d4' });
+  function addRow(tbl, k, v) {
+    var tr = document.createElement('tr'), a = document.createElement('td'), b = document.createElement('td');
+    a.textContent = k; b.textContent = v; tr.appendChild(a); tr.appendChild(b); tbl.appendChild(tr);
+  }
+  function addLink(box, text, href, ghost) {
+    var a = document.createElement('a'); a.className = 'btn' + (ghost ? ' ghost' : ''); a.textContent = text;
+    a.href = href; a.target = '_blank'; a.rel = 'noopener'; box.appendChild(a);
+  }
+  var cur = null, curToken = 0;
+  map.on('click', function (e) { showPoint(e); });
+  function showPoint(e) {
+    var lat = e.lngLat.lat.toFixed(6), lng = e.lngLat.lng.toFixed(6);
+    var token = ++curToken;
+    cur = { lat: Number(lat), lng: Number(lng), gnr: '', ez: '', kgnr: '', kg: '', gemeinde: '', nutzung: '', kultur: '', bio: '' };
+    $('letter-box').hidden = true;
+    marker.setLngLat(e.lngLat).addTo(map);
+    var tbl = $('pt-table'); tbl.textContent = '';
+    addRow(tbl, 'Koordinaten', lat + ', ' + lng);
+    var sel = { type: 'FeatureCollection', features: [] };
+    if (map.getZoom() >= 14) {
+      var one = function (layer) { var f = map.queryRenderedFeatures(e.point, { layers: [layer] })[0]; return f || null; };
+      var g = one('gst-hit'), kg = one('kg-hit'), pg = one('pg-hit'), n = one('nfl-hit');
+      if (g) {
+        var gp = g.properties || {};
+        sel.features.push({ type: 'Feature', geometry: g.geometry, properties: {} });
+        cur.gnr = String(gp.gnr || ''); cur.ez = String(gp.ez || ''); cur.kgnr = String(gp.kgez || gp.kg || ''); cur.kg = kg && kg.properties.kg ? String(kg.properties.kg) : '';
+        addRow(tbl, 'Grundstücksnummer', String(gp.gnr || '?'));
+        addRow(tbl, 'Einlagezahl (EZ)', String(gp.ez || '?'));
+        addRow(tbl, 'Katastralgemeinde', (kg && kg.properties.kg ? kg.properties.kg + ' ' : '') + '(' + String(gp.kg || '?') + ')');
+        if (gp.kgez && gp.kgez !== gp.kg) addRow(tbl, 'Grundbuch geführt in KG', String(gp.kgez));
+        if (gp.rstatus) addRow(tbl, 'Grenzen', gp.rstatus === 'G' ? 'Grenzkataster (rechtsverbindlich vermessen)' : 'Grundsteuerkataster (nicht verbindlich)');
+      } else { addRow(tbl, 'Grundstück', 'keine Daten an diesem Punkt'); }
+      if (pg && pg.properties.pg) { cur.gemeinde = String(pg.properties.pg); addRow(tbl, 'Gemeinde', cur.gemeinde); }
+      if (kg && kg.properties.bl) addRow(tbl, 'Bundesland', String(kg.properties.bl));
+      if (n && n.properties) {
+        var code = Number(n.properties.ns);
+        cur.nutzung = NS_NAME[code] || ('Code ' + n.properties.ns);
+        addRow(tbl, 'Nutzung laut Kataster', cur.nutzung);
+      }
+    } else { addRow(tbl, 'Grundstück', 'erst ab Zoom 14 abfragbar'); }
+    if (HAS_AG && map.getZoom() >= 12) {
+      var q1 = function (layer) { return map.getLayer(layer) ? map.queryRenderedFeatures(e.point, { layers: [layer] })[0] : null; };
+      var sg = q1('ag-schlag-hit'), bio = q1('ag-bio-hit'), nat = q1('ag-natura-hit');
+      if (sg) {
+        var ha = Number(sg.properties.sl_flaeche_brutto_ha);
+        cur.kultur = String(sg.properties.snar_bezeichnung || '');
+        cur.bio = bio ? 'ja' : 'nein';
+        addRow(tbl, 'Kultur laut Förderantrag', cur.kultur + (isFinite(ha) ? ' · ' + ha.toFixed(2).replace('.', ',') + ' ha' : ''));
+        addRow(tbl, 'Biologisch bewirtschaftet', bio ? 'ja (ÖPUL Bio, Antrag 2025)' : 'nein');
+      } else {
+        addRow(tbl, 'Kultur laut Förderantrag', 'kein gemeldeter Schlag');
+      }
+      if (nat) addRow(tbl, 'Natura 2000', nat.properties.gebietsart === 'FFH' ? 'ja, FFH-Gebiet' : 'ja, Vogelschutzgebiet');
+    }
+    // Nachgeladene Angaben: INVEKOS, Hochwasser, Haltestellen, Wald
+    var pt = [cur.lng, cur.lat];
+    var late = function (label, promise, fmt) {
+      var tr = document.createElement('tr'), a = document.createElement('td'), b = document.createElement('td');
+      a.textContent = label; b.textContent = '…'; tr.appendChild(a); tr.appendChild(b); tbl.appendChild(tr);
+      promise.then(function (v) { if (token === curToken) b.textContent = fmt(v); }, function () { if (token === curToken) b.textContent = 'nicht abrufbar'; });
+    };
+    late('INVEKOS gemeldet', wmsHit(IV_WMS, $('iv-select').value, cur.lng, cur.lat), function (v) { return v ? 'ja (' + $('iv-select').selectedOptions[0].textContent + ')' : 'nein'; });
+    late('Im HQ100-Bereich', wmsHit(HQ_WMS, HQ_LAYER, cur.lng, cur.lat), function (v) { return v ? 'ja, Überflutungsfläche' : 'nein'; });
+    var st = stops(cur.lng, cur.lat, 6000, 1500);
+    late('Nächster Bahnhof', st, function (els) { var n = nearest(els, pt, true); return n ? fmtM(n.d) + (n.name ? ' · ' + n.name : '') : 'keiner im Umkreis von 6 km'; });
+    late('Nächste Bushaltestelle', st, function (els) { var n = nearest(els, pt, false); return n ? fmtM(n.d) + (n.name ? ' · ' + n.name : '') : 'keine im Umkreis von 1,5 km'; });
+    if (map.getZoom() >= 14) { var fd = forestDist(pt, forestFeatures()); addRow(tbl, 'Nächster Wald (Kataster)', fd === Infinity ? 'keiner im geladenen Ausschnitt' : fd === 0 ? 'liegt im Wald' : fmtM(fd)); }
+    map.getSource('sel').setData(sel);
+    var box = $('pt-links'); box.textContent = '';
+    addLink(box, 'Street View', 'https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=' + lat + ',' + lng);
+    addLink(box, 'Google Maps', 'https://www.google.com/maps/search/?api=1&query=' + lat + ',' + lng, true);
+    addLink(box, 'BEV-Kataster', 'https://kataster.bev.gv.at/#/center/' + lng + ',' + lat + '/zoom/18', true);
+    addLink(box, 'Wayback-App', 'https://livingatlas.arcgis.com/wayback/#mapCenter=' + lng + '%2C' + lat + '%2C17', true);
+    addLink(box, 'Widmung: NÖ Atlas', 'https://atlas.noe.gv.at/', true);
+    addLink(box, 'Versteigerungen: Ediktsdatei', 'https://edikte.justiz.gv.at/', true);
+    $('pt-empty').hidden = true; $('pt-body').hidden = false;
+    if (isMobile()) { setPanel(true); $('point').scrollIntoView({ block: 'start' }); }
+  }
+
+  function curLabel(o) { return (o.kg ? 'KG ' + o.kg + ' (' + o.kgnr + ')' : o.kgnr ? 'KG ' + o.kgnr : 'ohne KG') + (o.gnr ? ', Gst. ' + o.gnr : '') + (o.ez ? ', EZ ' + o.ez : ''); }
+  $('pt-copy').addEventListener('click', function () {
+    if (!cur) return;
+    copyText(curLabel(cur) + (cur.gemeinde ? ', Gemeinde ' + cur.gemeinde : '') + ' · ' + cur.lat + ', ' + cur.lng, this, 'Kopiert');
+    var b = this; setTimeout(function () { b.textContent = 'Daten kopieren'; }, 2000);
+  });
+  $('pt-letter').addEventListener('click', function () {
+    if (!cur) return;
+    $('letter').value = 'Sehr geehrte Damen und Herren,\n\n' +
+      'ich interessiere mich für das Grundstück Nr. ' + (cur.gnr || '[Nummer]') + ' in der Katastralgemeinde ' + (cur.kg || '[KG]') +
+      (cur.kgnr ? ' (' + cur.kgnr + ')' : '') + (cur.ez ? ', EZ ' + cur.ez : '') + (cur.gemeinde ? ', Gemeinde ' + cur.gemeinde : '') + '.\n\n' +
+      'Laut Grundbuch sind Sie Eigentümer dieser Fläche. Ich suche ein Grundstück, das ich langfristig als Garten mit Obstbäumen und Gemüsebeeten bewirtschaften kann, und möchte anfragen, ob für Sie eine Verpachtung oder ein Verkauf in Frage kommt.\n\n' +
+      'Ich würde die Fläche verlässlich pflegen und in Ordnung halten. Über Pacht oder Kaufpreis spreche ich gerne mit Ihnen. Sie erreichen mich unter den unten stehenden Kontaktdaten.\n\n' +
+      'Vielen Dank und freundliche Grüße\n[Vor- und Nachname]\n[Adresse]\n[Telefon]';
+    $('letter-box').hidden = false;
+  });
+  $('letter-copy').addEventListener('click', function () { copyText($('letter').value, this, 'Kopiert'); var b = this; setTimeout(function () { b.textContent = 'Brief kopieren'; }, 2000); });
+
+  // ---------- Merkliste (bleibt im Browser dieses Geräts) ----------
+  var STATUS = ['neu', 'ansehen', 'Eigentümer klären', 'angeschrieben', 'Antwort da', 'abgesagt'];
+  var merk = [];
+  try { var mm = JSON.parse(localStorage.getItem('brach-merk') || '[]'); if (Array.isArray(mm)) merk = mm; } catch (e) {}
+  function merkSave() { try { localStorage.setItem('brach-merk', JSON.stringify(merk)); return true; } catch (e) { return false; } }
+  function merkRender() {
+    var box = $('merk-list'); box.textContent = '';
+    $('merk-count').textContent = merk.length ? '(' + merk.length + ')' : '';
+    $('merk-empty').hidden = merk.length > 0;
+    merk.forEach(function (o, idx) {
+      var it = document.createElement('div'); it.className = 'item';
+      var t = document.createElement('b'); t.textContent = curLabel(o);
+      var meta = document.createElement('div'); meta.className = 'meta'; meta.textContent = [o.gemeinde, o.nutzung, o.kultur, o.bio === 'ja' ? 'Bio' : '', o.lat + ', ' + o.lng].filter(Boolean).join(' · ');
+      var sel = document.createElement('select'); sel.setAttribute('aria-label', 'Status');
+      STATUS.forEach(function (s) { var op = document.createElement('option'); op.textContent = s; sel.appendChild(op); });
+      sel.value = o.status || 'neu';
+      sel.addEventListener('change', function () { o.status = sel.value; merkSave(); });
+      var note = document.createElement('input'); note.type = 'text'; note.placeholder = 'Notiz'; note.value = o.note || '';
+      note.addEventListener('change', function () { o.note = note.value; merkSave(); });
+      var row = document.createElement('div'); row.className = 'links';
+      var show = document.createElement('button'); show.type = 'button'; show.className = 'ghost'; show.textContent = 'Zeigen';
+      show.addEventListener('click', function () { map.flyTo({ center: [o.lng, o.lat], zoom: 17 }); if (isMobile()) setPanel(false); });
+      var del = document.createElement('button'); del.type = 'button'; del.className = 'ghost'; del.textContent = 'Löschen';
+      del.addEventListener('click', function () {
+        if (del.dataset.sure) { merk.splice(idx, 1); merkSave(); merkRender(); }
+        else { del.dataset.sure = '1'; del.textContent = 'Wirklich löschen?'; }
+      });
+      row.appendChild(show); row.appendChild(del);
+      it.appendChild(t); it.appendChild(meta); it.appendChild(sel); it.appendChild(note); it.appendChild(row); box.appendChild(it);
+    });
+    var src = null; try { src = map.getSource('merk'); } catch (e) {}
+    if (src) src.setData({ type: 'FeatureCollection', features: merk.map(function (o) { return { type: 'Feature', geometry: { type: 'Point', coordinates: [o.lng, o.lat] }, properties: {} }; }) });
+  }
+  $('pt-save').addEventListener('click', function () {
+    if (!cur) return;
+    var b = this;
+    var dup = merk.some(function (o) { return o.gnr && o.gnr === cur.gnr && o.kgnr === cur.kgnr; });
+    if (dup) { b.textContent = 'Schon gemerkt'; }
+    else {
+      var o = JSON.parse(JSON.stringify(cur)); o.status = 'neu'; o.note = ''; o.ts = new Date().toISOString().slice(0, 10);
+      merk.push(o); var ok = merkSave(); merkRender();
+      b.textContent = ok ? 'Gemerkt' : 'Gemerkt (nur bis zum Schließen der Seite)';
+    }
+    setTimeout(function () { b.textContent = 'Merken'; }, 2500);
+  });
+  function merkCsv() {
+    var q = function (v) { return '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"'; };
+    var rows = [['Katastralgemeinde', 'KG-Nummer', 'Grundstück', 'Einlagezahl', 'Gemeinde', 'Nutzung', 'Kultur', 'Bio', 'Status', 'Notiz', 'Breite', 'Länge', 'Gemerkt am', 'Google Maps']];
+    merk.forEach(function (o) { rows.push([o.kg, o.kgnr, o.gnr, o.ez, o.gemeinde, o.nutzung, o.kultur, o.bio, o.status, o.note, o.lat, o.lng, o.ts, 'https://www.google.com/maps/search/?api=1&query=' + o.lat + ',' + o.lng]); });
+    return rows.map(function (r) { return r.map(q).join(';'); }).join('\r\n');
+  }
+  $('merk-csv').addEventListener('click', function () {
+    if (!merk.length) { $('merk-status').textContent = 'Die Merkliste ist leer.'; return; }
+    try {
+      var url = URL.createObjectURL(new Blob(['\ufeff' + merkCsv()], { type: 'text/csv;charset=utf-8' }));
+      var a = document.createElement('a'); a.href = url; a.download = 'merkliste-grundstuecke.csv'; document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(function () { URL.revokeObjectURL(url); }, 5000);
+      $('merk-status').textContent = 'Datei merkliste-grundstuecke.csv gespeichert.';
+    } catch (e) { $('merk-status').textContent = 'Speichern nicht möglich. Nimm „Tabelle kopieren".'; }
+  });
+  $('merk-copy').addEventListener('click', function () {
+    if (!merk.length) { $('merk-status').textContent = 'Die Merkliste ist leer.'; return; }
+    copyText(merkCsv().replace(/;/g, '\t').replace(/"/g, ''), $('merk-status'), 'Tabelle kopiert. In Excel oder Google Tabellen einfügen.');
+  });
+
+  // ---------- Kandidaten im Ausschnitt ----------
+  function candCollect(ns, minA, b) {
+    var seen = {}, out = [];
+    map.querySourceFeatures('kataster', { sourceLayer: 'nfl', filter: ['==', ['to-number', ['get', 'ns'], -1], ns] }).forEach(function (f) {
+      var ac = areaCentroid(f.geometry); if (!ac || ac.area < minA) return;
+      if (!b.contains(ac.c)) return;
+      var key = ac.c[0].toFixed(5) + ',' + ac.c[1].toFixed(5) + ',' + Math.round(ac.area);
+      if (seen[key]) return; seen[key] = 1;
+      out.push({ ns: ns, area: ac.area, c: ac.c, geometry: f.geometry });
+    });
+    return out;
+  }
+  $('cand-run').addEventListener('click', function () {
+    var status = $('cand-status'), list = $('cand-list'); list.textContent = '';
+    if (map.getZoom() < 14) { status.textContent = 'Bitte näher heranzoomen (ab Zoom 14).'; return; }
+    status.textContent = 'Suche läuft…';
+    var b = map.getBounds(), minA = num('f-area') || 0, maxRail = num('f-rail'), maxBus = num('f-bus'), maxWald = num('f-wald');
+    var bush = candCollect(57, minA, b), fields = candCollect(48, Math.max(minA, 500), b);
+    // Gemeldete Brachen aus dem Agraratlas; Teilstücke desselben Schlags werden über die Kennung zusammengefasst
+    var brachen = [], seenB = {};
+    if (HAS_AG) map.querySourceFeatures('agrar', { sourceLayer: 'invekos_schlaege_polygon' }).forEach(function (f) {
+      var pr = f.properties || {}, name = String(pr.snar_bezeichnung || '');
+      if (name.indexOf('BRACHE') < 0 || seenB[pr.localID]) return;
+      var ac = areaCentroid(f.geometry); if (!ac || !b.contains(ac.c)) return;
+      var area = isFinite(Number(pr.sl_flaeche_brutto_ha)) ? Number(pr.sl_flaeche_brutto_ha) * 10000 : ac.area;
+      if (area < minA) return;
+      seenB[pr.localID] = 1;
+      brachen.push({ ns: 'B', area: area, c: ac.c, geometry: f.geometry, label: name.charAt(0) + name.slice(1).toLowerCase() });
+    });
+    var sw = merc(b.getWest(), b.getSouth()), ne = merc(b.getEast(), b.getNorth());
+    var W = 1024, H = Math.max(64, Math.min(2048, Math.round(W * (ne[1] - sw[1]) / (ne[0] - sw[0]))));
+    var notes = [];
+    var pIv = wmsPixels(IV_WMS, $('iv-select').value, [sw[0], sw[1], ne[0], ne[1]], W, H).then(function (img) {
+      return fields.filter(function (c) {
+        var m = merc(c.c[0], c.c[1]);
+        var px = Math.round((m[0] - sw[0]) / (ne[0] - sw[0]) * (W - 1)), py = Math.round((ne[1] - m[1]) / (ne[1] - sw[1]) * (H - 1));
+        for (var dy = -2; dy <= 2; dy += 2) for (var dx = -2; dx <= 2; dx += 2) {
+          var x = Math.min(W - 1, Math.max(0, px + dx)), y = Math.min(H - 1, Math.max(0, py + dy));
+          if (img.data[(y * W + x) * 4 + 3] > 0) return false;
+        }
+        return true;
+      });
+    }).catch(function () { notes.push('INVEKOS war nicht abrufbar, daher nur verbuschte Flächen.'); return []; });
+    var ctr = map.getCenter(), half = hav([b.getWest(), b.getSouth()], [b.getEast(), b.getNorth()]) / 2;
+    var pSt = stops(ctr.lng, ctr.lat, Math.min(15000, half + 6000), Math.min(6000, half + 1500))
+      .catch(function () { notes.push('Haltestellen waren nicht abrufbar.'); return null; });
+    Promise.all([pIv, pSt]).then(function (res) {
+      var all = bush.concat(res[0]).concat(brachen), els = res[1], forest = forestFeatures();
+      all.forEach(function (c) {
+        c.rail = els ? nearest(els, c.c, true) : null; c.bus = els ? nearest(els, c.c, false) : null;
+        c.wald = forestDist(c.c, forest);
+      });
+      var total = all.length;
+      all = all.filter(function (c) {
+        if (maxRail && els && !(c.rail && c.rail.d <= maxRail)) return false;
+        if (maxBus && els && !(c.bus && c.bus.d <= maxBus)) return false;
+        if (maxWald && !(c.wald <= maxWald)) return false;
+        return true;
+      }).sort(function (x, y) { return y.area - x.area; });
+      var shown = all.slice(0, 40);
+      map.getSource('cand').setData({ type: 'FeatureCollection', features: shown.map(function (c) { return { type: 'Feature', geometry: c.geometry, properties: {} }; }) });
+      shown.forEach(function (c) {
+        var btn = document.createElement('button'); btn.type = 'button'; btn.className = 'cand';
+        var tag = document.createElement('span'); tag.className = 'tag' + (c.ns === 48 ? ' w' : c.ns === 'B' ? ' b' : ''); tag.textContent = c.ns === 57 ? 'verbuscht' : c.ns === 'B' ? c.label + ' (gemeldet)' : 'Acker/Wiese ohne Meldung';
+        var a = document.createElement('b'); a.textContent = fmtA(c.area);
+        var meta = document.createElement('span'); meta.className = 'meta';
+        meta.textContent = 'Bahn ' + (c.rail ? fmtM(c.rail.d) + (c.rail.name ? ' (' + c.rail.name + ')' : '') : '–') + ' · Bus ' + (c.bus ? fmtM(c.bus.d) : '–') + ' · Wald ' + (c.wald === 0 ? 'angrenzend' : fmtM(c.wald));
+        btn.appendChild(tag); btn.appendChild(a); btn.appendChild(meta);
+        btn.addEventListener('click', function () {
+          map.once('moveend', function () { setTimeout(function () { showPoint({ lngLat: { lng: c.c[0], lat: c.c[1] }, point: map.project(c.c) }); }, 400); });
+          map.flyTo({ center: c.c, zoom: Math.max(map.getZoom(), 17) });
+          if (isMobile()) setPanel(false);
+        });
+        list.appendChild(btn);
+      });
+      status.textContent = (shown.length ? shown.length + ' Kandidaten' + (all.length > shown.length ? ' (von ' + all.length + ', die größten zuerst)' : '') + ', rosa umrandet.' : 'Keine Kandidaten' + (total ? ' nach deinen Filtern (' + total + ' ohne Filter).' : ' in diesem Ausschnitt.')) + (notes.length ? ' ' + notes.join(' ') : '') + ' An Kachelgrenzen können Flächen geteilt erscheinen.';
+    });
+  });
+
+  // ---------- Ansicht, Zoomhinweis ----------
+  function onMove() {
+    $('zoomhint').style.display = map.getZoom() < 14 ? 'block' : 'none';    try { var c = map.getCenter(); localStorage.setItem('brach-view', JSON.stringify({ center: [c.lng, c.lat], zoom: map.getZoom() })); } catch (e) {}
+    wbMeta();
+  }
+  map.on('moveend', onMove);
+  map.on('load', function () { applyBase(); onMove(); paintDots(); merkRender(); });
+  merkRender();
+
+  // ---------- Ortssuche (Nominatim / OpenStreetMap) ----------
+  $('qf').addEventListener('submit', function (ev) {
+    ev.preventDefault();
+    var q = $('q').value.trim(), box = $('results'); if (!q) return;
+    $('q').blur();
+    box.textContent = 'Suche…';
+    fetch('https://nominatim.openstreetmap.org/search?format=json&limit=5&countrycodes=at&q=' + encodeURIComponent(q))
+      .then(function (r) { return r.json(); }).then(function (list) {
+        box.textContent = '';
+        if (!list.length) { box.textContent = 'Nichts gefunden.'; return; }
+        list.forEach(function (it) {
+          var b = document.createElement('button'); b.type = 'button'; b.textContent = it.display_name;
+          b.addEventListener('click', function () {
+            map.flyTo({ center: [Number(it.lon), Number(it.lat)], zoom: 16 }); box.textContent = '';
+            if (isMobile()) setPanel(false);
+          });
+          box.appendChild(b);
+        });
+      }).catch(function () { box.textContent = 'Suche nicht erreichbar.'; });
+  });
+
+  // ---------- Mobil: Panel ein/aus ----------
+  $('toggle').addEventListener('click', function () { setPanel(!$('panel').classList.contains('open')); });
+})();
+</script>
+</body>
+</html>
