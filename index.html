@@ -599,7 +599,8 @@
       });
   }
   function wmsHit(base, layer, lng, lat) {
-    var c = merc(lng, lat), r = 6;
+    // 4 x 4 Meter um den Punkt prüfen; größer würde am Feldrand schon das Nachbarfeld erfassen
+    var c = merc(lng, lat), r = 2;
     return wmsPixels(base, layer, [c[0] - r, c[1] - r, c[0] + r, c[1] + r], 8, 8).then(function (img) {
       for (var i = 3; i < img.data.length; i += 4) if (img.data[i] > 0) return true;
       return false;
