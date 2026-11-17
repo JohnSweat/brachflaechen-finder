@@ -70,6 +70,21 @@
   #toggle { display: none; }
   #zoomhint { position: absolute; left: 50%; transform: translateX(-50%); top: 10px; z-index: 2; background: rgba(31,42,36,.88); color: #fff; padding: 5px 10px; border-radius: 999px; font-size: 13px; display: none; pointer-events: none; }
   #fatal { position: absolute; inset: 0; display: none; place-items: center; padding: 24px; text-align: center; background: var(--bg); z-index: 5; }
+  details.grp { padding: 0; }
+  details.grp > summary { list-style: none; cursor: pointer; padding: 10px 12px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+  details.grp > summary::-webkit-details-marker { display: none; }
+  details.grp > summary::before { content: '▸'; color: var(--muted); width: 12px; flex: none; }
+  details.grp[open] > summary::before { content: '▾'; }
+  details.grp > summary .gcount { margin-left: auto; font-weight: 400; font-size: 12.5px; color: var(--accent); }
+  details.grp > .gbody { padding: 0 12px 10px; }
+  .cnt { font-size: 12px; color: var(--muted); flex: none; white-space: nowrap; }
+  .cnt.err { color: var(--err); } .cnt.load { color: #3b78c4; }
+  .sw.pt { width: 12px; height: 12px; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 0 0 1px rgba(0,0,0,.35); }
+  .sw.dash { height: 0; border: 0; border-top: 3px dashed #333; border-radius: 0; }
+  .swl { display: flex; flex-wrap: wrap; gap: 3px 10px; font-size: 12px; color: var(--muted); margin: 0 0 4px 24px; }
+  .swl span { display: inline-flex; align-items: center; gap: 4px; }
+  .swl i { width: 12px; height: 10px; border-radius: 2px; display: inline-block; border: 1px solid rgba(0,0,0,.25); }
+  .lgimg { max-width: 100%; margin: 4px 0 4px 24px; display: block; }
   @media (max-width: 760px) {
     #app { display: block; height: 100vh; height: 100dvh; }
     #map { height: 100vh; height: 100dvh; }
@@ -82,6 +97,7 @@
     input[type=range] { height: 30px; }
     .links .btn { font-size: 15px; padding: 9px 13px; }
     #zoomhint { top: 12px; max-width: 72vw; text-align: center; }
+    details.grp > summary { min-height: 46px; }
     .sheet-open #toggle { left: auto; right: 10px; transform: none; bottom: calc(62vh + 10px); bottom: calc(62dvh + 10px); padding: 8px 16px; font-size: 14px; }
   }
 </style>
@@ -90,7 +106,7 @@
 <div id="app">
   <aside id="panel">
     <h1>Brachflächen-Finder</h1>
-    <p class="sub">Verwilderte Grundstücke in Österreich am Bildschirm aufspüren: Luftbild, Kataster, Agrarförderung und Street View in einer Karte.</p>
+    <p class="sub">Verwilderte Grundstücke in Österreich am Bildschirm aufspüren: Luftbild, Kataster, Agrarförderung und Street View in einer Karte. In Wien zusätzlich Öffis, Widmung, Planungen und Energieanlagen.</p>
 
     <form id="qf" class="search"><input type="search" id="q" placeholder="Ort oder Adresse suchen" aria-label="Ort suchen" enterkeyhint="search"><button type="submit">Suchen</button></form>
     <div id="results"></div>
@@ -116,14 +132,14 @@
     <div class="card">
       <div class="row"><span class="step">1</span><input type="checkbox" id="l-wayback"><label for="l-wayback">Luftbild früher</label><span class="dot" data-dot="wayback"></span></div>
       <div class="ctl">
-        <label>Stand der Bildsammlung
+        <label>Bild
           <select id="wb-release"><option>wird geladen…</option></select>
         </label>
         <label>Deckkraft <input type="range" id="wb-op" min="0" max="100" value="100"></label>
       </div>
       <button type="button" class="ghost" id="wb-flip" style="margin-top:8px">Alt ↔ Neu umschalten</button>
       <p class="hint" id="wb-date">Aufnahmedatum: Schicht einschalten.</p>
-      <p class="hint">Regler hin und her ziehen: Wo früher Beete und Wege waren und heute Gebüsch ist, wird nicht mehr gepflegt. Quelle: Esri World Imagery Wayback. Der „Stand“ ist das Veröffentlichungsdatum, nicht das Flugdatum; viele Stände zeigen dasselbe Bild.</p>
+      <p class="hint">Regler hin und her ziehen: Wo früher Beete und Wege waren und heute Gebüsch ist, wird nicht mehr gepflegt. Esri World Imagery Wayback gilt für ganz Österreich; das Datum ist das Veröffentlichungsdatum, nicht das Flugdatum, und viele Stände zeigen dasselbe Bild. Für Wien gibt es zusätzlich die Luftbilder der Stadt: jedes Jahr ab 2014 und historische von 1938 bis 1992, 1971 auch mit Umland.</p>
     </div>
 
     <div class="card">
@@ -177,6 +193,117 @@
       </div>
       <p class="hint">HQ100 ist ein Hochwasser, das statistisch einmal in 100 Jahren kommt. Auf solchen Flächen darf in Niederösterreich kein Bauland und kein Kleingarten neu gewidmet werden. Quelle: Bund (Umweltbundesamt), nicht parzellenscharf. Die Flächenwidmung selbst gibt es nicht als frei einbindbare Karte; dafür führt beim angeklickten Punkt ein Link in den NÖ Atlas.</p>
     </div>
+
+    <h2>Wien: Öffis, Verkehr, Planung, Strom</h2>
+    <p class="hint" style="margin:-2px 0 8px">Offene Daten der Stadt Wien; Öffis reichen ins Umland. Gruppe antippen zum Aufklappen. Die Zahl zeigt, wie viele Objekte geladen sind. Ein Objekt antippen: Die Details stehen dann unter „Angeklickter Punkt“.</p>
+
+    <details class="card grp">
+      <summary>Öffis <span class="gcount"></span></summary>
+      <div class="gbody legend">
+        <div class="row"><input type="checkbox" id="w-ubahn"><span class="sw line" style="border-top-color:#e3000f"></span><label for="w-ubahn">U-Bahn</label><span class="cnt" data-cnt="w-ubahn"></span></div>
+        <div class="swl"><span><i style="background:#e3000f"></i>U1</span><span><i style="background:#a762a3"></i>U2</span><span><i style="background:#ee7d00"></i>U3</span><span><i style="background:#319f49"></i>U4</span><span><i style="background:#9d6930"></i>U6</span></div>
+        <div class="row"><input type="checkbox" id="w-sbahn"><span class="sw line" style="border-top-color:#0a64ad"></span><label for="w-sbahn">S-Bahn und Regionalzüge</label><span class="cnt" data-cnt="w-sbahn"></span></div>
+        <div class="row"><input type="checkbox" id="w-bim"><span class="sw line" style="border-top-color:#d1202f"></span><label for="w-bim">Straßenbahn</label><span class="cnt" data-cnt="w-bim"></span></div>
+        <div class="row"><input type="checkbox" id="w-wlb"><span class="sw line" style="border-top-color:#00838f"></span><label for="w-wlb">Badner Bahn</label><span class="cnt" data-cnt="w-wlb"></span></div>
+        <div class="row"><input type="checkbox" id="w-bus"><span class="sw line" style="border-top-color:#3d5a80"></span><label for="w-bus">Busse (ab Zoom 12)</label><span class="cnt" data-cnt="w-bus"></span></div>
+        <div class="swl"><span><i style="background:#3d5a80"></i>Stadtbus</span><span><i style="background:#a0522d"></i>Regionalbus</span></div>
+        <div class="row"><input type="checkbox" id="w-nbus"><span class="sw dash" style="border-top-color:#222"></span><label for="w-nbus">Nacht- und Rufbusse (ab Zoom 12)</label><span class="cnt" data-cnt="w-nbus"></span></div>
+        <div class="row"><input type="checkbox" id="w-halt"><span class="sw pt" style="background:#0b3d91"></span><label for="w-halt">Haltestellen mit Linien (ab Zoom 13)</label><span class="cnt" data-cnt="w-halt"></span></div>
+        <div class="swl"><span><i style="background:#0b3d91"></i>U-Bahn</span><span><i style="background:#0a64ad"></i>Zug</span><span><i style="background:#d1202f"></i>Straßenbahn</span><span><i style="background:#3d5a80"></i>Bus</span><span><i style="background:#a0522d"></i>Regionalbus</span></div>
+        <p class="hint">Haltestellen sind nach dem wichtigsten Verkehrsmittel dort eingefärbt, Namen ab Zoom 15. Fahrpläne sind nicht dabei.</p>
+      </div>
+    </details>
+
+    <details class="card grp">
+      <summary>E-Laden, Carsharing, Leihrad, Taxi <span class="gcount"></span></summary>
+      <div class="gbody legend">
+        <div class="row"><input type="checkbox" id="w-elade"><span class="sw pt" style="background:#16a34a"></span><label for="w-elade">E-Ladestationen</label><span class="cnt" data-cnt="w-elade"></span></div>
+        <div class="row"><input type="checkbox" id="w-car"><span class="sw pt" style="background:#7c3aed"></span><label for="w-car">Carsharing-Stellplätze</label><span class="cnt" data-cnt="w-car"></span></div>
+        <div class="row"><input type="checkbox" id="w-rad"><span class="sw pt" style="background:#e11d48"></span><label for="w-rad">Leihrad-Stationen WienMobil Rad</label><span class="cnt" data-cnt="w-rad"></span></div>
+        <div class="row"><input type="checkbox" id="w-taxi"><span class="sw pt" style="background:#facc15"></span><label for="w-taxi">Taxistandplätze</label><span class="cnt" data-cnt="w-taxi"></span></div>
+        <p class="hint">Der Citybike-Datensatz der Stadt ist leer. Die Leihrad-Stationen kommen deshalb direkt vom Betreiber nextbike (WienMobil Rad).</p>
+      </div>
+    </details>
+
+    <details class="card grp">
+      <summary>Rad <span class="gcount"></span></summary>
+      <div class="gbody legend">
+        <div class="row"><input type="checkbox" id="w-radweg"><span class="sw line" style="border-top-color:#15803d"></span><label for="w-radweg">Radwege nach Art (ab Zoom 14)</label><span class="cnt" data-cnt="w-radweg"></span></div>
+        <div class="swl"><span><i style="background:#15803d"></i>getrennt vom Autoverkehr</span><span><i style="background:#4ade80"></i>markiert</span><span><i style="background:#2563eb"></i>Radroute</span><span><i style="background:#a16207"></i>Gelände</span></div>
+        <div class="row"><input type="checkbox" id="w-hrn"><span class="sw line" style="border-top-color:#f97316"></span><label for="w-hrn">Hauptradverkehrsnetz (ab Zoom 12)</label><span class="cnt" data-cnt="w-hrn"></span></div>
+        <div class="swl"><span><i style="background:#c2410c"></i>Basisroute</span><span><i style="background:#f97316"></i>Grundnetz</span><span><i style="background:#fdba74"></i>erweitertes Grundnetz</span></div>
+        <div class="row"><input type="checkbox" id="w-radplan"><span class="sw dash" style="border-top-color:#ea580c"></span><label for="w-radplan">Hauptradverkehrsnetz, Planung</label><span class="cnt" data-cnt="w-radplan"></span></div>
+      </div>
+    </details>
+
+    <details class="card grp">
+      <summary>Parken und ruhige Straßen <span class="gcount"></span></summary>
+      <div class="gbody legend">
+        <div class="row"><input type="checkbox" id="w-kpz"><span class="sw" style="background:rgba(59,130,246,.3);border-color:#1d4ed8"></span><label for="w-kpz">Kurzparkzonen mit Zeiten</label><span class="cnt" data-cnt="w-kpz"></span></div>
+        <div class="row"><input type="checkbox" id="w-garage"><span class="sw pt" style="background:#1d4ed8"></span><label for="w-garage">Garagen, große Punkte = Park &amp; Ride</label><span class="cnt" data-cnt="w-garage"></span></div>
+        <div class="row"><input type="checkbox" id="w-t30"><span class="sw" style="background:rgba(234,179,8,.45)"></span><label for="w-t30">Tempo-30-Zonen</label><span class="cnt" data-cnt="w-t30"></span></div>
+        <div class="row"><input type="checkbox" id="w-begeg"><span class="sw" style="background:rgba(20,184,166,.55)"></span><label for="w-begeg">Begegnungszonen</label><span class="cnt" data-cnt="w-begeg"></span></div>
+        <div class="row"><input type="checkbox" id="w-wohnstr"><span class="sw" style="background:rgba(244,114,182,.6)"></span><label for="w-wohnstr">Wohnstraßen</label><span class="cnt" data-cnt="w-wohnstr"></span></div>
+        <div class="row"><input type="checkbox" id="w-fuzo"><span class="sw" style="background:rgba(168,85,247,.6)"></span><label for="w-fuzo">Fußgängerzonen</label><span class="cnt" data-cnt="w-fuzo"></span></div>
+        <p class="hint">Kurzparkzonen: Fläche mit Zeiten und Höchstdauer; dunkelblaue Linien sind Straßenstücke mit eigenen Regeln. Garagen auch im Umland, etwa am Flughafen.</p>
+      </div>
+    </details>
+
+    <details class="card grp">
+      <summary>Was gebaut und geplant wird <span class="gcount"></span></summary>
+      <div class="gbody legend">
+        <div class="row"><input type="checkbox" id="w-baust"><span class="sw pt" style="background:#dc2626"></span><label for="w-baust">Baustellen mit Zeitraum</label><span class="cnt" data-cnt="w-baust"></span></div>
+        <div class="row"><input type="checkbox" id="w-ubplan"><span class="sw dash" style="border-top-color:#00a3a6"></span><label for="w-ubplan">U-Bahn-Ausbau U2/U5 mit Stationen</label><span class="cnt" data-cnt="w-ubplan"></span></div>
+        <div class="row"><input type="checkbox" id="w-bimplan"><span class="sw dash" style="border-top-color:#d1202f"></span><label for="w-bimplan">Neue Straßenbahnstrecken</label><span class="cnt" data-cnt="w-bimplan"></span></div>
+        <div class="row"><input type="checkbox" id="w-strplan"><span class="sw dash" style="border-top-color:#b45309"></span><label for="w-strplan">Straßenplanung: Autobahn, Schnellstraße, Hauptstraße</label><span class="cnt" data-cnt="w-strplan"></span></div>
+        <div class="row"><input type="checkbox" id="w-transf"><span class="sw" style="background:rgba(244,63,94,.45)"></span><label for="w-transf">Umbruchflächen und Großbaustellen</label><span class="cnt" data-cnt="w-transf"></span></div>
+        <p class="hint">Baustellen: nur die verkehrswirksamen. Umbruchflächen sind laut Realnutzungskartierung 2024 Transformationsflächen, Baustellen oder Abbauflächen. Antippen zeigt Zeitraum, Stand und geplante Eröffnung.</p>
+      </div>
+    </details>
+
+    <details class="card grp">
+      <summary>Widmung und Bauverfahren <span class="gcount"></span></summary>
+      <div class="gbody legend">
+        <div class="row"><input type="checkbox" id="w-fwp"><label for="w-fwp">Flächenwidmungsplan (amtlich, farbig)</label><span class="dot" data-dot="w-fwp"></span></div>
+        <div class="ctl" style="margin:0 0 4px 24px"><label>Deckkraft <input type="range" id="w-fwp-op" min="0" max="100" value="60"></label></div>
+        <div class="swl"><span><i style="background:#ffa64c"></i>Wohngebiet</span><span><i style="background:#c08065"></i>Gemischtes Baugebiet</span><span><i style="background:#981a1b"></i>Geschäftsviertel</span><span><i style="background:#ffbfab"></i>Gartensiedlung</span><span><i style="background:#d980fe"></i>Betriebsbaugebiet</span><span><i style="background:#9a00ff"></i>Industriegebiet</span><span><i style="background:#cd9933"></i>Sondergebiet</span><span><i style="background:#fefacb"></i>Ländliches Gebiet</span><span><i style="background:#4dcca1"></i>Wald- und Wiesengürtel, Parkschutz</span><span><i style="background:#adff2e"></i>Erholung: Park, Kleingarten, Sport</span><span><i style="background:#a3ff74"></i>Friedhof</span><span><i style="background:#b3b3b3"></i>Verkehrsband</span></div>
+        <div class="row"><input type="checkbox" id="w-fwpcode"><label for="w-fwpcode">Widmungs-Kürzel wie W1, SWW, EKL (ab Zoom 15)</label><span class="dot" data-dot="w-fwpcode"></span></div>
+        <div class="row"><input type="checkbox" id="w-verf"><span class="sw" style="background:rgba(37,99,235,.35);border-color:#1e40af"></span><label for="w-verf">Widmungsverfahren mit öffentlicher Auflage</label><span class="cnt" data-cnt="w-verf"></span></div>
+        <div class="row"><input type="checkbox" id="w-bausp"><span class="sw" style="background:rgba(220,38,38,.3);border-color:#991b1b"></span><label for="w-bausp">Bausperren</label><span class="cnt" data-cnt="w-bausp"></span></div>
+        <div class="row"><input type="checkbox" id="w-erp"><span class="sw" style="background:rgba(14,165,233,.3);border-color:#0369a1"></span><label for="w-erp">Klimaschutzgebiete (Energieraumplan)</label><span class="cnt" data-cnt="w-erp"></span></div>
+        <p class="hint">Grün ist Grünland, Orange und Braun Bauland, Violett Betriebs- und Industriegebiet. Die Farben sind aus dem amtlichen Plan abgelesen. Beim angeklickten Punkt steht die Widmung zusätzlich als Text; diese Fassung ist vereinfacht und nicht parzellenscharf, verbindlich ist nur der Plan der Stadt. Eine Bausperre heißt: Die Stadt überarbeitet hier gerade die Widmung. Im Klimaschutzgebiet brauchen Neubauten eine klimafreundliche Heizung.</p>
+      </div>
+    </details>
+
+    <details class="card grp">
+      <summary>Strom, Energie, Industrie <span class="gcount"></span></summary>
+      <div class="gbody legend">
+        <div class="row"><input type="checkbox" id="w-energie"><span class="sw pt" style="background:#0ea5e9"></span><label for="w-energie">Kraftwerke und Energieanlagen, auch Windräder</label><span class="cnt" data-cnt="w-energie"></span></div>
+        <div class="swl"><span><i style="background:#0ea5e9"></i>Wind</span><span><i style="background:#f59e0b"></i>Sonne</span><span><i style="background:#1d4ed8"></i>Wasser</span><span><i style="background:#6b7280"></i>Gas</span><span><i style="background:#7c2d12"></i>Abfall</span><span><i style="background:#65a30d"></i>Biomasse, Deponiegas</span><span><i style="background:#db2777"></i>Abwärme, Wärmepumpe</span></div>
+        <div class="row"><input type="checkbox" id="w-pv"><span class="sw pt" style="background:#fbbf24"></span><label for="w-pv">Geförderte PV-Anlagen ab 100 kWp</label><span class="cnt" data-cnt="w-pv"></span></div>
+        <div class="row"><input type="checkbox" id="w-indw"><span class="sw" style="background:#9a00ff"></span><label for="w-indw">Industrie- und Betriebsbaugebiete laut Widmung</label><span class="cnt" data-cnt="w-indw"></span></div>
+        <div class="row"><input type="checkbox" id="w-indr"><span class="sw" style="background:#b91c1c"></span><label for="w-indr">Tatsächlich genutzt: Industrie, Energie, Deponie, Lager, Militär</label><span class="cnt" data-cnt="w-indr"></span></div>
+        <div class="swl"><span><i style="background:#b91c1c"></i>Industrie, Gewerbe</span><span><i style="background:#f59e0b"></i>Energieversorgung</span><span><i style="background:#78350f"></i>Kläranlage, Deponie</span><span><i style="background:#475569"></i>Logistik, Lager</span><span><i style="background:#4d7c0f"></i>Militär</span></div>
+        <p class="hint">Punktgröße nach Leistung. Die Widmung zeigt, was dort erlaubt ist, auch künftig; die Realnutzung 2024 zeigt, was dort tatsächlich steht. Lärm großer Industrieanlagen: unten bei „Ganz Österreich“.</p>
+      </div>
+    </details>
+
+    <h2>Ganz Österreich: Lärm und Internet</h2>
+    <details class="card grp">
+      <summary>Lärm und Internet <span class="gcount"></span></summary>
+      <div class="gbody legend">
+        <div class="row"><input type="checkbox" id="w-lstr"><label for="w-lstr">Straßenlärm, Mittel über 24 Stunden</label><span class="dot" data-dot="w-lstr"></span></div>
+        <div class="row"><input type="checkbox" id="w-lbahn"><label for="w-lbahn">Bahnlärm, Mittel über 24 Stunden</label><span class="dot" data-dot="w-lbahn"></span></div>
+        <div class="row"><input type="checkbox" id="w-lflug"><label for="w-lflug">Fluglärm, Mittel über 24 Stunden</label><span class="dot" data-dot="w-lflug"></span></div>
+        <div class="row"><input type="checkbox" id="w-lind"><label for="w-lind">Lärm großer Industrieanlagen</label><span class="dot" data-dot="w-lind"></span></div>
+        <img class="lgimg" alt="Legende Lärm in Dezibel" loading="lazy" src="https://inspire.lfrz.gv.at/000804/ows?service=WMS&amp;version=1.3.0&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=2022_IPPC_24H_ZONEN_OE">
+        <div class="row"><input type="checkbox" id="w-ruhig"><label for="w-ruhig">Ruhige Gebiete laut Aktionsplan 2024</label><span class="dot" data-dot="w-ruhig"></span></div>
+        <div class="row"><input type="checkbox" id="w-bbfix"><label for="w-bbfix">Breitband Festnetz</label><span class="dot" data-dot="w-bbfix"></span></div>
+        <div class="row"><input type="checkbox" id="w-bbmob"><label for="w-bbmob">Mobilfunk-Versorgung</label><span class="dot" data-dot="w-bbmob"></span></div>
+        <div style="display:flex;flex-wrap:wrap"><img class="lgimg" alt="Legende Festnetz" loading="lazy" src="https://breitbandatlas.gv.at/images/fixed.png"><img class="lgimg" alt="Legende Mobilfunk" loading="lazy" src="https://breitbandatlas.gv.at/images/mobile.png"></div>
+        <p class="hint">Lärmkarten des Bundes, Stand 2022: Mittelwert über 24 Stunden in Dezibel, kartiert ab 55 dB. Die Zonen erscheinen erst beim Hineinzoomen. Breitband: höchste verfügbare Bandbreite laut Breitbandatlas.</p>
+      </div>
+    </details>
 
     <h2>Angeklickter Punkt</h2>
     <div class="card" id="point">
@@ -232,6 +359,7 @@
         <li>Außerhalb des Orts INVEKOS dazuschalten: gemeldet oder nicht?</li>
         <li>Parzelle anklicken, in Street View Zaun, Zufahrt und Briefkasten ansehen.</li>
         <li>Gute Funde merken; die Merkliste lässt sich als Tabelle speichern.</li>
+        <li>In Wien: Öffis, Widmung und Planungen in den Wien-Gruppen dazuschalten.</li>
       </ol>
       <p class="note">Punkt neben dem Schichtnamen: grün = lädt, gelb = teilweise, rot = der Server liefert nichts, grau = aus.</p>
       <p class="note">Verwildert heißt nicht verfügbar. Fast jedes Grundstück hat einen Eigentümer. Alle Daten ohne Gewähr.</p>
@@ -335,6 +463,175 @@
   if (HAS_AG) layers.push({ id: 'ag-schlag-name', type: 'symbol', source: 'agrar', 'source-layer': 'invekos_schlaege_polygon', minzoom: 15,
     layout: { visibility: 'none', 'text-field': ['to-string', ['get', 'snar_bezeichnung']], 'text-font': ['Roboto Bold'], 'text-size': 10, 'text-padding': 12 },
     paint: { 'text-color': '#ffffff', 'text-halo-color': '#112233', 'text-halo-width': 1.4 } });
+  // ---------- Zusatzschichten: Wien (offene Daten der Stadt) und ganz Österreich (Lärm, Breitband) ----------
+  var WIEN_BOUNDS = [16.15, 48.08, 16.62, 48.36];
+  function WMTS_W(layer, style, ext) { return ['https://mapsneu.wien.gv.at/wmts/' + layer + '/' + style + '/google3857/{z}/{y}/{x}.' + ext]; }
+  function LAERM(layer) { return ['https://inspire.lfrz.gv.at/000804/wms?service=WMS&version=1.3.0&request=GetMap&layers=' + layer + '&styles=&format=image%2Fpng&transparent=true&crs=EPSG%3A3857&width=512&height=512&bbox={bbox-epsg-3857}']; }
+  function BBA(set, layer) { return ['https://breitbandatlas.gv.at/resources/gwc/service/wmts/rest/' + set + '/' + layer + '/EPSG:3857/EPSG:3857:{z}/{y}/{x}?format=image/png']; }
+  // Luftbilder der Stadt Wien: [Ebene, Stil, Jahr, höchste Zoomstufe]
+  var WIEN_LB = [['lb1938', 'grau', '1938', 19], ['lb1956', 'grau', '1956', 19], ['lb1961', 'grau', '1961', 19], ['lb1971', 'grau', '1971', 19], ['lb1971mU', 'grau', '1971 mit Umland', 19],
+    ['lb1976', 'grau', '1976', 19], ['lb1981', 'grau', '1981', 19], ['lb1986', 'grau', '1986', 19], ['lb1992', 'grau', '1992', 19],
+    ['lb2014', 'farbe', '2014', 19], ['lb2015', 'farbe', '2015', 19], ['lb2016', 'farbe', '2016', 19], ['lb2017', 'farbe', '2017', 19], ['lb2018', 'farbe', '2018', 19], ['lb2019', 'farbe', '2019', 19],
+    ['lb2020', 'farbe', '2020', 20], ['lb2021', 'farbe', '2021', 20], ['lb2022', 'farbe', '2022', 21], ['lb2023', 'farbe', '2023', 21], ['lb2024', 'farbe', '2024', 21], ['lb', 'farbe', '2025', 21]];
+  var WIEN_LB_BY = {}; WIEN_LB.forEach(function (w) { WIEN_LB_BY[w[0]] = w; });
+  // Rasterschichten: Schalter, Quelle und Ebene tragen dieselbe Kennung
+  var W_RASTER = {
+    'w-fwp': { tiles: WMTS_W('flwbplmzk', 'rot', 'jpeg'), bounds: WIEN_BOUNDS, max: 19, op: 0.6, attr: 'Flächenwidmung © Stadt Wien' },
+    'w-lstr': { tiles: LAERM('2022_STRASSE_24H_ZONEN_OE'), size: 512, max: 22, op: 0.65, attr: 'Lärmkarten: inspire.gv.at' },
+    'w-lbahn': { tiles: LAERM('2022_SCHIENE_24H_ZONEN_OE'), size: 512, max: 22, op: 0.65, attr: 'Lärmkarten: inspire.gv.at' },
+    'w-lflug': { tiles: LAERM('2022_FLUGHAEFEN_24H_ZONEN_OE'), size: 512, max: 22, op: 0.65, attr: 'Lärmkarten: inspire.gv.at' },
+    'w-lind': { tiles: LAERM('2022_IPPC_24H_ZONEN_OE'), size: 512, max: 22, op: 0.65, attr: 'Lärmkarten: inspire.gv.at' },
+    'w-ruhig': { tiles: LAERM('2024_Ruhige_Gebiete'), size: 512, max: 22, op: 0.6, attr: 'Lärmkarten: inspire.gv.at' },
+    'w-bbfix': { tiles: BBA('Festnetz', 'resources:bbafix'), max: 17, op: 0.6, attr: 'breitbandatlas.gv.at' },
+    'w-bbmob': { tiles: BBA('Mobilfunknetz', 'resources:mobile'), max: 17, op: 0.6, attr: 'breitbandatlas.gv.at' },
+    'w-fwpcode': { tiles: WMTS_W('flwbplgen', 'grau', 'png'), bounds: WIEN_BOUNDS, max: 19, op: 1, minzoom: 15, top: true }
+  };
+  var RANG_TXT = { B: 'Basisroute', G: 'Grundnetz', E: 'erweitertes Grundnetz' };
+  function bauInfo(p) { return ['Baustelle', [String(p.BEZEICHNUNG || '').trim(), p.BEHINDERUNGSART, (p.OBJEKT_BEGINN ? fmtD(p.OBJEKT_BEGINN) : '?') + ' bis ' + (p.OBJEKT_ENDE ? fmtD(p.OBJEKT_ENDE) : '?')].filter(Boolean).join(' · ')]; }
+  function linInfo(p) { return ['Öffi-Linie', p.LBEZEICHNUNG + (p.LTYPTXT ? ' (' + p.LTYPTXT + ')' : '')]; }
+  // Vektorquellen. t = Ebene(n) beim WFS der Stadt, cql = Filter am Server, view = nur der sichtbare Ausschnitt ab dieser Zoomstufe
+  var WS = {
+    rail: { t: 'OEFFLINIENOGD', cql: 'LTYP IN (1,4,5,6)', info: linInfo },
+    bus: { t: 'OEFFLINIENOGD', cql: 'LTYP NOT IN (1,4,5,6)', view: 12, max: 6000, info: linInfo },
+    halt: { t: 'OEFFHALTESTOGD', view: 13, max: 5000, info: function (p) { return ['Haltestelle', p.HTXT + ': ' + shortLines(p.HLINIEN)]; } },
+    elade: { t: 'ELADESTELLEOGD', info: function (p) { return ['E-Ladestation', String(p.ADDRESS || p.DESIGNATION || '').trim() + (p.OPERATORNAME ? ' · ' + (p.OPERATORNAME === 'Wien Energ' ? 'Wien Energie' : p.OPERATORNAME) : '')]; } },
+    car: { t: 'CARSHARINGOGD', info: function (p) { return ['Carsharing', (p.BEZEICHNUNG || '') + (p.ADRESSE ? ' · ' + p.ADRESSE : '')]; } },
+    rad: { url: 'https://gbfs.nextbike.net/maps/gbfs/v2/nextbike_wr/de/station_information.json', conv: gbfsGeo, info: function (p) { return ['WienMobil Rad', p.name + (p.capacity ? ' · ' + p.capacity + ' Stellplätze' : '')]; } },
+    taxi: { t: 'TAXIOGD', mid: true, info: function (p) { return ['Taxistandplatz', String(p.ADRESSE || '') + (p.STELLPLATZANZAHL ? ' · ' + p.STELLPLATZANZAHL + ' Plätze' : '') + (p.ZEITRAUM ? ' · ' + p.ZEITRAUM : '')]; } },
+    garage: { t: 'GARAGENOGD', info: function (p) { return [p.PARK_AND_RIDE === 'Y' ? 'Park & Ride' : 'Garage', (p.BEZEICHNUNG || '') + (p.ADRESSE ? ' · ' + p.ADRESSE : '') + (p.ORT ? ', ' + p.ORT : '')]; } },
+    radweg: { t: 'RADWEGEOGD', view: 14, max: 8000, info: function (p) { return ['Radweg', p.SUBMERKMAL || p.MERKMAL || '']; } },
+    hrn: { t: 'RADNETZOGD', cql: "RANG='H'", view: 12, max: 8000, info: function (p) { return ['Hauptradverkehrsnetz', (RANG_TXT[p.M18_RANG_SUB] || 'Hauptnetz') + (p.STRNAM ? ' · ' + p.STRNAM : '')]; } },
+    radplan: { t: 'RADNETZPLANUNGOGD', info: function (p) { return ['Radnetz in Planung', (RANG_TXT[p.RANG_SUB] || 'Verbindung') + (p.LAENGE ? ' · ' + fmtM(Number(p.LAENGE)) : '')]; } },
+    kpz: { t: 'KURZPARKZONEOGD', info: function (p) { return ['Kurzparkzone', (p.ZEITRAUM || '') + (p.DAUER ? ', höchstens ' + p.DAUER : '')]; } },
+    kpzs: { t: 'KURZPARKSTREIFENOGD', info: function (p) { return ['Kurzparkzone, Straßenstück', (p.STRNAM || '') + (p.GELTUNGSBEREICH ? ' ' + p.GELTUNGSBEREICH : '') + ': ' + (p.ZEITRAUM || '') + (p.DAUER ? ', höchstens ' + p.DAUER : '')]; } },
+    t30: { t: 'TEMPOZONEOGD', info: function (p) { return ['Tempo-30-Zone', p.ZONE_NAME || 'ja']; } },
+    begeg: { t: 'BEGEGNUNGSZONEOGD', info: function (p) { return ['Begegnungszone', p.ADRESSE || 'ja']; } },
+    wohnstr: { t: 'WOHNSTRASSEOGD', info: function (p) { return ['Wohnstraße', p.ADRESSE || 'ja']; } },
+    fuzo: { t: 'FUSSGEHERZONEOGD', info: function (p) { return ['Fußgängerzone', (p.ADRESSE || 'ja') + (p.AUSN_TEXT ? ' · ' + tx(p.AUSN_TEXT) + (p.ZEITRAUM ? ' (' + tx(p.ZEITRAUM) + ')' : '') : '')]; } },
+    baup: { t: 'BAUSTELLENPKTOGD', info: bauInfo },
+    baul: { t: 'BAUSTELLENLINOGD', info: bauInfo },
+    ubplan: { t: 'PLANUNGUBAHNOGD', info: function (p) { return ['U-Bahn-Ausbau', tx(p.NAME) + (tx(p.KOMMENTAR) ? ' · ' + tx(p.KOMMENTAR) : '')]; } },
+    ubhalt: { t: 'PLANUNGUBHALTOGD', info: function (p) { return ['Geplante U-Bahn-Station', (p.HTXT || '') + (p.HBEM ? ' (' + p.HBEM + ')' : '') + (p.EROEFF_JAHR ? ' · Eröffnung geplant ' + p.EROEFF_JAHR : '')]; } },
+    bimplan: { t: 'PLANUNGBIMOGD', info: function (p) { return ['Straßenbahn in Planung', 'Linie ' + tx(p.LINIE) + (tx(p.KOMMENTAR) ? ' · ' + tx(p.KOMMENTAR) : '') + (tx(p.EROEFFNUNG) ? ' · Eröffnung ' + tx(p.EROEFFNUNG) : '')]; } },
+    bimhalt: { t: 'PLANUNGBIMHALTOGD', info: function (p) { return ['Geplante Haltestelle', (p.HST_NAME || '') + ' (Linie ' + p.LINIE + ')']; } },
+    strpl: { t: ['PLANUNGAUTOBOGD', 'PLANUNGSCHNELLOGD', 'PLANUNGHPTSTROGD'], info: function (p) { return ['Straßenplanung', [tx(p.NAME), tx(p.STATUS), tx(p.KOMMENTAR), tx(p.FERTIG) ? 'fertig ' + tx(p.FERTIG) : ''].filter(Boolean).join(' · ')]; } },
+    strplf: { t: ['PLANUNGASTOGD', 'PLANUNGKNOTENOGD'], info: function (p) { return ['Straßenplanung', [tx(p.NAME), tx(p.FERTIG) ? 'fertig ' + tx(p.FERTIG) : ''].filter(Boolean).join(' · ')]; } },
+    transf: { t: 'REALNUT2024OGD', cql: 'CODE=154', info: function (p) { return ['Realnutzung 2024', p.LEV3 || '']; } },
+    verf: { t: 'SMBABOEFFAUFLAGEOGD', info: function (p) { return ['Widmungsverfahren', 'Plan ' + p.PLANNUMMER + ' · ' + (p.NAME || '') + ' · ' + (p.VERFAHRENSSTAND || '') + (p.BEGINN_OEFFENTLICHE_AUFLAGE ? ' · Auflage ' + fmtD(p.BEGINN_OEFFENTLICHE_AUFLAGE) + ' bis ' + fmtD(p.ENDE_OEFFENTLICHE_AUFLAGE) : '')]; } },
+    bausp: { t: ['BAUSPERRE82OGD', 'BAUSPERRE86OGD'], info: function (p) { return ['Bausperre', [p.NAME, p.VERFAHRENSSTAND, p.BAUSPERRENFRIST ? 'Frist bis ' + fmtD(p.BAUSPERRENFRIST) : '', p.KUNDMACHUNGSDATUM ? 'kundgemacht ' + fmtD(p.KUNDMACHUNGSDATUM) : ''].filter(Boolean).join(' · ')]; } },
+    erp: { t: 'ENERGIERAUMPLANOGD', info: function (p) { return ['Klimaschutzgebiet', 'Energieraumplan ' + (p.ERPLABEL || '')]; } },
+    energie: { t: 'ENSONSTANLOGD', info: function (p) { var el = Number(p.ELEKTR_BRU), th = Number(p.THERM_BRUT); return ['Energieanlage', (p.ART || '') + (p.ENERGIEQUE ? ' · ' + p.ENERGIEQUE : '') + (el > 0 ? ' · ' + fmtN(el) + ' MW Strom' : '') + (th > 0 ? ' · ' + fmtN(th) + ' MW Wärme' : '')]; } },
+    pv: { t: 'ENGEFPVANLOGD', cql: 'LEISTUNG>=100', info: function (p) { return ['PV-Anlage (gefördert)', fmtN(p.LEISTUNG) + ' kWp' + (p.BAUJAHR ? ' · Baujahr ' + p.BAUJAHR : '')]; } },
+    indw: { t: 'GENFLWIDMUNGOGD', cql: "WIDMUNGSKLASSE IN ('IG','GBBG')", info: function (p) { return ['Widmung', (p.WIDMUNGSKLASSE_TXT || '') + (p.WIDMUNG ? ' (' + p.WIDMUNG + ')' : '')]; } },
+    indr: { t: 'REALNUT2024OGD', cql: 'CODE IN (131,151,152,155,323)', info: function (p) { return ['Realnutzung 2024', p.LEV3 || '']; } }
+  };
+  var LT = ['to-number', ['get', 'LTYP'], 0];
+  var U_COL = ['match', ['to-string', ['get', 'LBEZEICHNUNG']], 'U1', '#e3000f', 'U2', '#a762a3', 'U3', '#ee7d00', ['U4', 'U4, U6', 'U4,U6'], '#319f49', 'U5', '#00a3a6', 'U6', '#9d6930', '#0b3d91'];
+  var W_TXT = { 'text-color': '#0b1f3a', 'text-halo-color': '#ffffff', 'text-halo-width': 1.6 };
+  var W_LINE_TXT = { 'text-color': '#ffffff', 'text-halo-color': '#111111', 'text-halo-width': 1.6 };
+  function wLbl(field, size) { return { 'text-field': field, 'text-font': ['Roboto Bold'], 'text-size': size || 11, 'text-offset': [0, 0.9], 'text-anchor': 'top' }; }
+  function wLineLbl() { return { 'symbol-placement': 'line', 'text-field': ['to-string', ['get', 'LBEZEICHNUNG']], 'text-font': ['Roboto Bold'], 'text-size': 11, 'symbol-spacing': 350 }; }
+  function wPt(color, r, stroke) { return { 'circle-radius': r || 5, 'circle-color': color, 'circle-stroke-color': stroke || '#ffffff', 'circle-stroke-width': 1.5 }; }
+  var W_LAYERS = [
+    // Flächen: unter den Grundstücksgrenzen
+    { z: 'fill', id: 'w-kpz', type: 'fill', source: 'w-kpz', paint: { 'fill-color': '#3b82f6', 'fill-opacity': 0.12 } },
+    { z: 'fill', id: 'w-kpz-o', type: 'line', source: 'w-kpz', paint: { 'line-color': '#1d4ed8', 'line-width': 1.5 } },
+    { z: 'fill', id: 'w-t30', type: 'fill', source: 'w-t30', paint: { 'fill-color': '#eab308', 'fill-opacity': 0.22 } },
+    { z: 'fill', id: 'w-t30-o', type: 'line', source: 'w-t30', paint: { 'line-color': '#a16207', 'line-width': 1 } },
+    { z: 'fill', id: 'w-erp', type: 'fill', source: 'w-erp', paint: { 'fill-color': '#0ea5e9', 'fill-opacity': 0.18 } },
+    { z: 'fill', id: 'w-erp-o', type: 'line', source: 'w-erp', paint: { 'line-color': '#0369a1', 'line-width': 1 } },
+    { z: 'fill', id: 'w-indr', type: 'fill', source: 'w-indr', paint: { 'fill-color': ['match', ['to-number', ['get', 'CODE'], 0], 131, '#b91c1c', 152, '#f59e0b', 155, '#78350f', 323, '#475569', 151, '#4d7c0f', '#111827'], 'fill-opacity': 0.45 } },
+    { z: 'fill', id: 'w-indr-o', type: 'line', source: 'w-indr', paint: { 'line-color': '#1f2937', 'line-width': 0.8 } },
+    { z: 'fill', id: 'w-indw', type: 'fill', source: 'w-indw', paint: { 'fill-color': ['match', ['get', 'WIDMUNGSKLASSE'], 'IG', '#9a00ff', '#d980fe'], 'fill-opacity': 0.5 } },
+    { z: 'fill', id: 'w-indw-o', type: 'line', source: 'w-indw', paint: { 'line-color': '#5b21b6', 'line-width': 1 } },
+    { z: 'fill', id: 'w-transf', type: 'fill', source: 'w-transf', paint: { 'fill-color': '#f43f5e', 'fill-opacity': 0.3 } },
+    { z: 'fill', id: 'w-transf-o', type: 'line', source: 'w-transf', paint: { 'line-color': '#be123c', 'line-width': 1.5 } },
+    { z: 'fill', id: 'w-begeg', type: 'fill', source: 'w-begeg', paint: { 'fill-color': '#14b8a6', 'fill-opacity': 0.4 } },
+    { z: 'fill', id: 'w-begeg-o', type: 'line', source: 'w-begeg', paint: { 'line-color': '#0f766e', 'line-width': 1.2 } },
+    { z: 'fill', id: 'w-wohnstr', type: 'fill', source: 'w-wohnstr', paint: { 'fill-color': '#f472b6', 'fill-opacity': 0.45 } },
+    { z: 'fill', id: 'w-wohnstr-o', type: 'line', source: 'w-wohnstr', paint: { 'line-color': '#be185d', 'line-width': 1.2 } },
+    { z: 'fill', id: 'w-fuzo', type: 'fill', source: 'w-fuzo', paint: { 'fill-color': '#a855f7', 'fill-opacity': 0.45 } },
+    { z: 'fill', id: 'w-fuzo-o', type: 'line', source: 'w-fuzo', paint: { 'line-color': '#7e22ce', 'line-width': 1.2 } },
+    { z: 'fill', id: 'w-verf', type: 'fill', source: 'w-verf', paint: { 'fill-color': '#2563eb', 'fill-opacity': 0.25 } },
+    { z: 'fill', id: 'w-verf-o', type: 'line', source: 'w-verf', paint: { 'line-color': '#1e40af', 'line-width': 2, 'line-dasharray': [3, 2] } },
+    { z: 'fill', id: 'w-bausp', type: 'fill', source: 'w-bausp', paint: { 'fill-color': '#dc2626', 'fill-opacity': 0.22 } },
+    { z: 'fill', id: 'w-bausp-o', type: 'line', source: 'w-bausp', paint: { 'line-color': '#991b1b', 'line-width': 2 } },
+    { z: 'fill', id: 'w-strpl-f', type: 'fill', source: 'w-strplf', paint: { 'fill-color': '#f59e0b', 'fill-opacity': 0.35 } },
+    { z: 'fill', id: 'w-strpl-fo', type: 'line', source: 'w-strplf', paint: { 'line-color': '#b45309', 'line-width': 1.5 } },
+    // Linien: über den Grundstücksgrenzen
+    { z: 'line', id: 'w-radweg-g', type: 'line', source: 'w-radweg', minzoom: 14, filter: ['==', ['get', 'MERKMAL'], 'Getrennte Führung'], layout: { 'line-cap': 'round' }, paint: { 'line-color': '#15803d', 'line-width': 2.6 } },
+    { z: 'line', id: 'w-radweg-m', type: 'line', source: 'w-radweg', minzoom: 14, filter: ['==', ['get', 'MERKMAL'], 'Markierte Anlagen'], paint: { 'line-color': '#4ade80', 'line-width': 2.2, 'line-dasharray': [2, 1] } },
+    { z: 'line', id: 'w-radweg-r', type: 'line', source: 'w-radweg', minzoom: 14, filter: ['==', ['get', 'MERKMAL'], 'Radroute'], paint: { 'line-color': '#2563eb', 'line-width': 2, 'line-dasharray': [1, 1.5] } },
+    { z: 'line', id: 'w-radweg-w', type: 'line', source: 'w-radweg', minzoom: 14, filter: ['==', ['get', 'MERKMAL'], 'Radfahren im Wald'], paint: { 'line-color': '#a16207', 'line-width': 2, 'line-dasharray': [1, 2] } },
+    { z: 'line', id: 'w-hrn', type: 'line', source: 'w-hrn', minzoom: 12, layout: { 'line-cap': 'round' }, paint: { 'line-color': ['match', ['get', 'M18_RANG_SUB'], 'B', '#c2410c', 'E', '#fdba74', '#f97316'], 'line-width': ['match', ['get', 'M18_RANG_SUB'], 'B', 4, 'E', 2.5, 3] } },
+    { z: 'line', id: 'w-radplan', type: 'line', source: 'w-radplan', paint: { 'line-color': '#ea580c', 'line-width': 3, 'line-dasharray': [2, 1.5] } },
+    { z: 'line', id: 'w-kpzs', type: 'line', source: 'w-kpzs', paint: { 'line-color': '#1d4ed8', 'line-width': 3.5 } },
+    { z: 'line', id: 'w-bus', type: 'line', source: 'w-bus', minzoom: 12, filter: ['in', LT, ['literal', [2, 3]]], paint: { 'line-color': ['match', LT, 2, '#3d5a80', '#a0522d'], 'line-width': ['interpolate', ['linear'], ['zoom'], 12, 1.2, 16, 2.5] } },
+    { z: 'line', id: 'w-nbus', type: 'line', source: 'w-bus', minzoom: 12, filter: ['>=', LT, 9], paint: { 'line-color': '#222222', 'line-width': 1.4, 'line-dasharray': [2, 2] } },
+    { z: 'line', id: 'w-bim', type: 'line', source: 'w-rail', filter: ['==', LT, 1], layout: { 'line-cap': 'round' }, paint: { 'line-color': '#d1202f', 'line-width': ['interpolate', ['linear'], ['zoom'], 10, 1, 16, 3] } },
+    { z: 'line', id: 'w-wlb', type: 'line', source: 'w-rail', filter: ['==', LT, 6], paint: { 'line-color': '#00838f', 'line-width': ['interpolate', ['linear'], ['zoom'], 9, 1.5, 16, 4] } },
+    { z: 'line', id: 'w-sbahn', type: 'line', source: 'w-rail', filter: ['==', LT, 5], paint: { 'line-color': '#0a64ad', 'line-width': ['interpolate', ['linear'], ['zoom'], 9, 1.5, 16, 4] } },
+    { z: 'line', id: 'w-ubahn', type: 'line', source: 'w-rail', filter: ['==', LT, 4], layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': U_COL, 'line-width': ['interpolate', ['linear'], ['zoom'], 9, 2, 16, 6] } },
+    { z: 'line', id: 'w-baul', type: 'line', source: 'w-baul', paint: { 'line-color': '#dc2626', 'line-width': 5, 'line-opacity': 0.85 } },
+    { z: 'line', id: 'w-strpl', type: 'line', source: 'w-strpl', paint: { 'line-color': ['match', ['get', '_t'], 'PLANUNGHPTSTROGD', '#f59e0b', '#b45309'], 'line-width': 4, 'line-dasharray': [2, 1] } },
+    { z: 'line', id: 'w-bimplan', type: 'line', source: 'w-bimplan', paint: { 'line-color': '#d1202f', 'line-width': 4, 'line-dasharray': [1.5, 1] } },
+    { z: 'line', id: 'w-ubplan', type: 'line', source: 'w-ubplan', paint: { 'line-color': ['match', ['get', 'NAME'], 'U2', '#a762a3', 'U5', '#00a3a6', '#0b3d91'], 'line-width': 6, 'line-dasharray': [1.5, 1] } },
+    // Punkte und Beschriftungen: ganz oben, nur die Merkliste liegt darüber
+    { z: 'pt', id: 'w-halt', type: 'circle', source: 'w-halt', minzoom: 13, filter: ['<', LT, 9], paint: { 'circle-radius': ['match', LT, 4, 6, 5, 5.5, 6, 5, 1, 4.5, 3.5], 'circle-color': ['match', LT, 4, '#0b3d91', 5, '#0a64ad', 6, '#00838f', 1, '#d1202f', 2, '#3d5a80', 3, '#a0522d', '#222222'], 'circle-stroke-color': '#ffffff', 'circle-stroke-width': 1.5 } },
+    { z: 'pt', id: 'w-elade', type: 'circle', source: 'w-elade', paint: wPt('#16a34a') },
+    { z: 'pt', id: 'w-car', type: 'circle', source: 'w-car', paint: wPt('#7c3aed') },
+    { z: 'pt', id: 'w-rad', type: 'circle', source: 'w-rad', paint: wPt('#e11d48') },
+    { z: 'pt', id: 'w-taxi', type: 'circle', source: 'w-taxi', paint: wPt('#facc15', 5, '#333333') },
+    { z: 'pt', id: 'w-garage', type: 'circle', source: 'w-garage', paint: { 'circle-radius': ['match', ['get', 'PARK_AND_RIDE'], 'Y', 7, 4.5], 'circle-color': ['match', ['get', 'PARK_AND_RIDE'], 'Y', '#1d4ed8', '#64748b'], 'circle-stroke-color': '#ffffff', 'circle-stroke-width': 1.5 } },
+    { z: 'pt', id: 'w-pv', type: 'circle', source: 'w-pv', paint: { 'circle-radius': ['interpolate', ['linear'], ['to-number', ['get', 'LEISTUNG'], 100], 100, 3.5, 1000, 6, 3000, 8], 'circle-color': '#fbbf24', 'circle-stroke-color': '#92400e', 'circle-stroke-width': 1 } },
+    { z: 'pt', id: 'w-energie', type: 'circle', source: 'w-energie', paint: { 'circle-radius': ['interpolate', ['linear'], ['max', ['to-number', ['get', 'ELEKTR_BRU'], 0], ['to-number', ['get', 'THERM_BRUT'], 0]], 0, 5, 5, 7, 50, 10, 500, 15], 'circle-color': ['match', ['get', 'TYP'], 'WK', '#0ea5e9', 'SK', '#f59e0b', 'WA', '#1d4ed8', 'GA', '#6b7280', 'MV', '#7c2d12', 'BM', '#65a30d', 'ND', '#db2777', '#111111'], 'circle-stroke-color': '#ffffff', 'circle-stroke-width': 2 } },
+    { z: 'pt', id: 'w-baup', type: 'circle', source: 'w-baup', paint: { 'circle-radius': 7, 'circle-color': '#dc2626', 'circle-stroke-color': '#ffffff', 'circle-stroke-width': 2 } },
+    { z: 'pt', id: 'w-bimhalt', type: 'circle', source: 'w-bimhalt', paint: { 'circle-radius': 4.5, 'circle-color': '#ffffff', 'circle-stroke-color': '#d1202f', 'circle-stroke-width': 2.5 } },
+    { z: 'pt', id: 'w-ubhalt', type: 'circle', source: 'w-ubhalt', paint: { 'circle-radius': 6, 'circle-color': '#ffffff', 'circle-stroke-color': ['match', ['get', 'HBEM'], 'U2', '#a762a3', 'U5', '#00a3a6', '#0b3d91'], 'circle-stroke-width': 3 } },
+    { z: 'pt', id: 'w-ubahn-lbl', type: 'symbol', source: 'w-rail', minzoom: 13, filter: ['==', LT, 4], layout: wLineLbl(), paint: W_LINE_TXT },
+    { z: 'pt', id: 'w-sbahn-lbl', type: 'symbol', source: 'w-rail', minzoom: 13, filter: ['==', LT, 5], layout: wLineLbl(), paint: W_LINE_TXT },
+    { z: 'pt', id: 'w-bim-lbl', type: 'symbol', source: 'w-rail', minzoom: 15, filter: ['==', LT, 1], layout: wLineLbl(), paint: W_LINE_TXT },
+    { z: 'pt', id: 'w-bus-lbl', type: 'symbol', source: 'w-bus', minzoom: 15, filter: ['in', LT, ['literal', [2, 3]]], layout: wLineLbl(), paint: W_LINE_TXT },
+    { z: 'pt', id: 'w-halt-lbl', type: 'symbol', source: 'w-halt', minzoom: 15, filter: ['<', LT, 9], layout: wLbl(['to-string', ['get', 'HTXT']]), paint: W_TXT },
+    { z: 'pt', id: 'w-ubhalt-lbl', type: 'symbol', source: 'w-ubhalt', minzoom: 12, layout: wLbl(['concat', ['to-string', ['get', 'HTXT']], ' ', ['to-string', ['coalesce', ['get', 'EROEFF_JAHR'], '']]], 12), paint: W_TXT },
+    { z: 'pt', id: 'w-energie-lbl', type: 'symbol', source: 'w-energie', minzoom: 13, layout: wLbl(['to-string', ['get', 'ART']]), paint: W_TXT }
+  ];
+  // Schalter im Panel: welche Quellen sie laden, welche Ebenen sie zeigen, was gezählt wird
+  function isLT(a) { return function (f) { return a.indexOf(Number(f.properties.LTYP)) >= 0; }; }
+  var WT = {
+    'w-ubahn': { src: ['rail'], lay: ['w-ubahn', 'w-ubahn-lbl'], cnt: isLT([4]) },
+    'w-sbahn': { src: ['rail'], lay: ['w-sbahn', 'w-sbahn-lbl'], cnt: isLT([5]) },
+    'w-bim': { src: ['rail'], lay: ['w-bim', 'w-bim-lbl'], cnt: isLT([1]) },
+    'w-wlb': { src: ['rail'], lay: ['w-wlb'], cnt: isLT([6]) },
+    'w-bus': { src: ['bus'], lay: ['w-bus', 'w-bus-lbl'], cnt: isLT([2, 3]) },
+    'w-nbus': { src: ['bus'], lay: ['w-nbus'], cnt: isLT([9, 10, 11, 12, 13]) },
+    'w-halt': { src: ['halt'], lay: ['w-halt', 'w-halt-lbl'], cnt: function (f) { return Number(f.properties.LTYP) < 9; } },
+    'w-elade': { src: ['elade'], lay: ['w-elade'] },
+    'w-car': { src: ['car'], lay: ['w-car'] },
+    'w-rad': { src: ['rad'], lay: ['w-rad'] },
+    'w-taxi': { src: ['taxi'], lay: ['w-taxi'] },
+    'w-garage': { src: ['garage'], lay: ['w-garage'] },
+    'w-radweg': { src: ['radweg'], lay: ['w-radweg-g', 'w-radweg-m', 'w-radweg-r', 'w-radweg-w'] },
+    'w-hrn': { src: ['hrn'], lay: ['w-hrn'] },
+    'w-radplan': { src: ['radplan'], lay: ['w-radplan'] },
+    'w-kpz': { src: ['kpz', 'kpzs'], lay: ['w-kpz', 'w-kpz-o', 'w-kpzs'] },
+    'w-t30': { src: ['t30'], lay: ['w-t30', 'w-t30-o'] },
+    'w-begeg': { src: ['begeg'], lay: ['w-begeg', 'w-begeg-o'] },
+    'w-wohnstr': { src: ['wohnstr'], lay: ['w-wohnstr', 'w-wohnstr-o'] },
+    'w-fuzo': { src: ['fuzo'], lay: ['w-fuzo', 'w-fuzo-o'] },
+    'w-baust': { src: ['baup', 'baul'], lay: ['w-baup', 'w-baul'] },
+    'w-ubplan': { src: ['ubplan', 'ubhalt'], lay: ['w-ubplan', 'w-ubhalt', 'w-ubhalt-lbl'] },
+    'w-bimplan': { src: ['bimplan', 'bimhalt'], lay: ['w-bimplan', 'w-bimhalt'] },
+    'w-strplan': { src: ['strpl', 'strplf'], lay: ['w-strpl', 'w-strpl-f', 'w-strpl-fo'] },
+    'w-transf': { src: ['transf'], lay: ['w-transf', 'w-transf-o'] },
+    'w-verf': { src: ['verf'], lay: ['w-verf', 'w-verf-o'] },
+    'w-bausp': { src: ['bausp'], lay: ['w-bausp', 'w-bausp-o'] },
+    'w-erp': { src: ['erp'], lay: ['w-erp', 'w-erp-o'] },
+    'w-energie': { src: ['energie'], lay: ['w-energie', 'w-energie-lbl'] },
+    'w-pv': { src: ['pv'], lay: ['w-pv'] },
+    'w-indw': { src: ['indw'], lay: ['w-indw', 'w-indw-o'] },
+    'w-indr': { src: ['indr'], lay: ['w-indr', 'w-indr-o'] }
+  };
   var SOURCES = {
     ortho: { type: 'raster', tiles: BM('bmaporthofoto30cm', 'jpeg'), tileSize: 256, maxzoom: 20, attribution: '© <a href="https://basemap.at">basemap.at</a>' },
     grau: { type: 'raster', tiles: BM('bmapgrau', 'png'), tileSize: 256, maxzoom: 20, attribution: '© <a href="https://basemap.at">basemap.at</a>' },
@@ -346,6 +643,35 @@
     merk: { type: 'geojson', data: { type: 'FeatureCollection', features: [] } }
   };
   if (HAS_AG) SOURCES.agrar = { type: 'vector', url: 'pmtiles://https://agraratlas.inspire.gv.at/map/tiles/agraratlas.pmtiles', attribution: 'Agraratlas © BMLUK, AMA' };
+  Object.keys(WS).forEach(function (k) {
+    SOURCES['w-' + k] = { type: 'geojson', data: { type: 'FeatureCollection', features: [] }, attribution: k === 'rad' ? 'WienMobil Rad: nextbike (CC0)' : 'Daten: <a href="https://data.wien.gv.at">Stadt Wien</a>' };
+  });
+  Object.keys(W_RASTER).forEach(function (id) {
+    var r = W_RASTER[id], s = { type: 'raster', tiles: r.tiles, tileSize: r.size || 256, maxzoom: r.max || 19 };
+    if (r.bounds) s.bounds = r.bounds;
+    if (r.attr) s.attribution = r.attr;
+    SOURCES[id] = s;
+  });
+  (function () {
+    var at = function (id) { return layers.map(function (l) { return l.id; }).indexOf(id); };
+    var put = function (before, list) { Array.prototype.splice.apply(layers, [at(before), 0].concat(list)); };
+    var rasters = function (top) {
+      return Object.keys(W_RASTER).filter(function (id) { return !!W_RASTER[id].top === top; }).map(function (id) {
+        var l = { id: id, type: 'raster', source: id, layout: { visibility: 'none' }, paint: { 'raster-opacity': W_RASTER[id].op } };
+        if (W_RASTER[id].minzoom) l.minzoom = W_RASTER[id].minzoom;
+        return l;
+      });
+    };
+    var of = function (z) {
+      return W_LAYERS.filter(function (l) { return l.z === z; }).map(function (l) {
+        var c = JSON.parse(JSON.stringify(l)); delete c.z; c.layout = c.layout || {}; c.layout.visibility = 'none'; return c;
+      });
+    };
+    put('nfl-' + Object.keys(NUTZ)[0], rasters(false));
+    put('pg-hit', of('fill'));
+    put('cand-line', of('line').concat(rasters(true)));
+    put('merk-pt', of('pt'));
+  })();
 
   var map = new maplibregl.Map({
     container: 'map',
@@ -374,7 +700,9 @@
   // ---------- Status-Punkte ----------
   var stat = {}; // sourceId -> {ok, err}
   var DOT_SOURCES = { base: ['ortho', 'grau'], wayback: ['wayback'], kataster: ['kataster'], invekos: ['invekos'], hq: ['hq'], agrar: ['agrar'] };
+  Object.keys(W_RASTER).forEach(function (id) { DOT_SOURCES[id] = [id]; });
   function isOn(key) {
+    if (key.indexOf('w-') === 0) return !!$(key) && $(key).checked;
     if (key === 'base') return document.querySelector('input[name=base]:checked').value !== 'none';
     if (key === 'wayback') return $('l-wayback').checked;
     if (key === 'invekos') return $('l-invekos').checked;
@@ -439,18 +767,30 @@
     var perYear = {};
     list.forEach(function (x) { perYear[x.date.slice(0, 4)] = x; });
     var sel = $('wb-release'); sel.textContent = '';
+    var g1 = document.createElement('optgroup'); g1.label = 'Esri, ganz Österreich';
     Object.keys(perYear).sort().forEach(function (y) {
-      var o = document.createElement('option'); o.value = perYear[y].num; o.textContent = perYear[y].date; sel.appendChild(o);
+      var o = document.createElement('option'); o.value = perYear[y].num; o.textContent = perYear[y].date; g1.appendChild(o);
     });
+    if (g1.children.length) sel.appendChild(g1);
+    var g2 = document.createElement('optgroup'); g2.label = 'Stadt Wien, nur Wien';
+    WIEN_LB.forEach(function (w) { var o = document.createElement('option'); o.value = 'wien:' + w[0]; o.textContent = 'Wien ' + w[2]; g2.appendChild(o); });
+    sel.appendChild(g2);
     if (sel.options.length) { sel.selectedIndex = 0; wb.current = sel.value; }
   }
   function wbApply() {
     if (map.getLayer('wayback')) map.removeLayer('wayback');
     if (map.getSource('wayback')) map.removeSource('wayback');
-    if (!$('l-wayback').checked || !wb.current || !wb.items[wb.current]) { paintDots(); $('wb-date').textContent = 'Aufnahmedatum: Schicht einschalten.'; $('wb-flip').textContent = 'Alt ↔ Neu umschalten'; return; }
-    var url = wb.items[wb.current].itemURL.replace('{level}', '{z}').replace('{row}', '{y}').replace('{col}', '{x}');
+    var wien = wb.current && wb.current.indexOf('wien:') === 0 ? WIEN_LB_BY[wb.current.slice(5)] : null;
+    if (!$('l-wayback').checked || !wb.current || (!wien && !wb.items[wb.current])) { paintDots(); $('wb-date').textContent = 'Aufnahmedatum: Schicht einschalten.'; $('wb-flip').textContent = 'Alt ↔ Neu umschalten'; return; }
     resetStat('wayback');
-    map.addSource('wayback', { type: 'raster', tiles: [url], tileSize: 256, maxzoom: 17, attribution: 'Esri World Imagery Wayback' });
+    if (wien) {
+      var ws = { type: 'raster', tiles: WMTS_W(wien[0], wien[1], 'jpeg'), tileSize: 256, maxzoom: wien[3], attribution: 'Luftbild © Stadt Wien' };
+      if (wien[0] !== 'lb1971mU') ws.bounds = WIEN_BOUNDS;
+      map.addSource('wayback', ws);
+    } else {
+      var url = wb.items[wb.current].itemURL.replace('{level}', '{z}').replace('{row}', '{y}').replace('{col}', '{x}');
+      map.addSource('wayback', { type: 'raster', tiles: [url], tileSize: 256, maxzoom: 17, attribution: 'Esri World Imagery Wayback' });
+    }
     map.addLayer({ id: 'wayback', type: 'raster', source: 'wayback', paint: { 'raster-opacity': $('wb-op').value / 100 } }, 'anchor-imagery');
     $('wb-flip').textContent = 'Zeigt: alt · umschalten';
     wbMeta();
@@ -458,6 +798,11 @@
   function wbMeta() {
     clearTimeout(wb.timer);
     if (!$('l-wayback').checked || !wb.current) return;
+    if (wb.current.indexOf('wien:') === 0) {
+      var w = WIEN_LB_BY[wb.current.slice(5)];
+      $('wb-date').textContent = (w[1] === 'farbe' ? 'Orthofoto ' : 'Luftbildplan ') + w[2].slice(0, 4) + ' der Stadt Wien' + (w[0] === 'lb1971mU' ? ', mit Umland.' : '; deckt nur Wien ab.');
+      return;
+    }
     wb.timer = setTimeout(function () {
       var it = wb.items[wb.current]; if (!it || !it.metadataLayerUrl) return;
       var z = Math.max(10, Math.min(23, Math.round(map.getZoom())));
@@ -533,6 +878,172 @@
     map.addLayer({ id: 'hq', type: 'raster', source: 'hq', minzoom: 11, paint: { 'raster-opacity': 0.6 } }, 'nfl-' + Object.keys(NUTZ)[0]);
   }
   $('l-hq').addEventListener('change', hqApply);
+
+  // ---------- Wien: Daten laden und Schichten schalten ----------
+  var WFS = 'https://data.wien.gv.at/daten/geo?service=WFS&request=GetFeature&version=1.1.0&srsName=EPSG:4326&outputFormat=json&typeName=ogdwien:';
+  function json(r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); }
+  function fmtD(s) { var m = /(\d{4})-(\d{2})-(\d{2})/.exec(s || ''); return m ? m[3] + '.' + m[2] + '.' + m[1] : String(s || ''); }
+  function tx(v) { return v == null ? '' : String(v).trim(); }
+  function fmtN(v) { v = Number(v); return isFinite(v) ? String(Math.round(v * 100) / 100).replace('.', ',') : ''; }
+  function lineRank(l) { return /^U\d/.test(l) ? 0 : /^S\d/.test(l) ? 1 : /^(\d{1,2}|[A-Z])$/.test(l) ? 3 : /^N\d/.test(l) ? 6 : /^\d+[A-Z]$/.test(l) ? 4 : /^(REX|CJX|R\d|WLB|D |EC|IC|RJ|EN|NJ|WB)/.test(l) ? 2 : 5; }
+  function shortLines(s) {
+    var a = String(s || '').split(',').map(function (x) { return x.trim(); }).filter(Boolean);
+    a = a.filter(function (x, i) { return a.indexOf(x) === i; }).sort(function (x, y) { return lineRank(x) - lineRank(y); });
+    return a.slice(0, 12).join(', ') + (a.length > 12 ? ' …' : '');
+  }
+  function gbfsGeo(j) {
+    return { type: 'FeatureCollection', features: ((j && j.data && j.data.stations) || []).map(function (s) {
+      return { type: 'Feature', geometry: { type: 'Point', coordinates: [s.lon, s.lat] }, properties: { name: s.name, capacity: s.capacity } };
+    }) };
+  }
+  function wfsUrl(t, cql, bb, max) {
+    var f = cql || '';
+    if (bb) f = 'BBOX(SHAPE,' + bb.map(function (v) { return v.toFixed(5); }).join(',') + ",'EPSG:4326')" + (f ? ' AND ' + f : '');
+    return WFS + t + (f ? '&CQL_FILTER=' + encodeURIComponent(f) : '') + (max ? '&maxFeatures=' + max : '');
+  }
+  // Taxistandplätze sind kurze Linien; als Punkt sieht man sie auch beim Herauszoomen
+  function midPoint(f) {
+    var g = f.geometry; if (!g) return null;
+    var cs = g.type === 'LineString' ? g.coordinates : g.type === 'MultiLineString' ? g.coordinates[0] : g.type === 'Point' ? [g.coordinates] : null;
+    if (!cs || !cs.length) return null;
+    return { type: 'Feature', geometry: { type: 'Point', coordinates: cs[Math.floor(cs.length / 2)] }, properties: f.properties };
+  }
+  // Scheitert die ganze Ebene an einem einzelnen kaputten Objekt, die Objekte einzeln holen und das kaputte auslassen
+  function wfsFeatures(t, cql, bb, max) {
+    return fetchT(wfsUrl(t, cql, bb, max), 45000).then(json).then(function (j) { return j.features || []; }).catch(function (e) {
+      if (bb) throw e;
+      return fetchT(WFS + t + '&propertyName=OBJECTID' + (cql ? '&CQL_FILTER=' + encodeURIComponent(cql) : ''), 30000).then(json).then(function (j) {
+        var ids = (j.features || []).map(function (f) { return f.properties && f.properties.OBJECTID; }).filter(function (v) { return v != null; }).slice(0, 60);
+        if (!ids.length) throw e;
+        return Promise.all(ids.map(function (id) {
+          return fetchT(wfsUrl(t, (cql ? cql + ' AND ' : '') + 'OBJECTID=' + Number(id), null, 1), 30000).then(json)
+            .then(function (k) { return k.features || []; }).catch(function () { return []; });
+        })).then(function (parts) { var all = [].concat.apply([], parts); if (!all.length) throw e; return all; });
+      });
+    });
+  }
+  function wFetch(s, bb, max) {
+    if (s.url) return fetchT(s.url, 30000).then(json).then(s.conv);
+    var ts = Array.isArray(s.t) ? s.t : [s.t];
+    return Promise.all(ts.map(function (t) {
+      return wfsFeatures(t, s.cql, bb, max).then(function (fs) {
+        return fs.map(function (f) { f.properties = f.properties || {}; f.properties._t = t; return f; });
+      });
+    })).then(function (parts) {
+      var feats = [].concat.apply([], parts);
+      if (s.mid) feats = feats.map(midPoint).filter(Boolean);
+      return { type: 'FeatureCollection', features: feats };
+    });
+  }
+  function wSet(key, fc) {
+    var s = WS[key]; s.data = fc; s.state = 'ok';
+    var src = map.getSource('w-' + key); if (src) src.setData(fc);
+    wPaint();
+  }
+  function wNeeded(key) { return Object.keys(WT).some(function (id) { return $(id).checked && WT[id].src.indexOf(key) >= 0; }); }
+  // Kleine Datensätze einmal ganz laden; große (view) nur für den Ausschnitt, mit etwas Rand
+  function wEnsure(key) {
+    var s = WS[key];
+    if (s.view) {
+      if (map.getZoom() < s.view) { wPaint(); return; }
+      var b = map.getBounds(), bb = [b.getWest(), b.getSouth(), b.getEast(), b.getNorth()];
+      if (s.bb && !s.capped && s.bb[0] <= bb[0] && s.bb[1] <= bb[1] && s.bb[2] >= bb[2] && s.bb[3] >= bb[3]) { wPaint(); return; }
+      var dx = (bb[2] - bb[0]) * 0.15, dy = (bb[3] - bb[1]) * 0.15, max = s.max || 6000;
+      bb = [bb[0] - dx, bb[1] - dy, bb[2] + dx, bb[3] + dy];
+      var my = s.req = (s.req || 0) + 1;
+      s.state = 'load'; wPaint();
+      wFetch(s, bb, max).then(function (fc) { if (my !== s.req) return; s.bb = bb; s.capped = fc.features.length >= max; wSet(key, fc); })
+        .catch(function () { if (my === s.req) { s.state = 'err'; wPaint(); } });
+      return;
+    }
+    if (s.state === 'ok' || s.state === 'load') return;
+    s.state = 'load'; wPaint();
+    wFetch(s).then(function (fc) { wSet(key, fc); }).catch(function () { s.state = 'err'; wPaint(); });
+  }
+  function wPaint() {
+    var z = map.getZoom();
+    Object.keys(WT).forEach(function (id) {
+      var el = document.querySelector('[data-cnt="' + id + '"]'); if (!el) return;
+      var t = WT[id], txt = '', cls = 'cnt';
+      if ($(id).checked) {
+        var sts = t.src.map(function (k) { var s = WS[k]; return s.view && z < s.view && s.state !== 'err' ? 'zoom' : s.state; });
+        if (sts.indexOf('err') >= 0) { txt = 'Fehler'; cls += ' err'; }
+        else if (sts.indexOf('zoom') >= 0) { txt = 'ab Zoom ' + Math.max.apply(null, t.src.map(function (k) { return WS[k].view || 0; })); }
+        else if (sts.indexOf('load') >= 0 || sts.indexOf(undefined) >= 0) { txt = 'lädt…'; cls += ' load'; }
+        else {
+          var n = 0, capped = false;
+          t.src.forEach(function (k) { var d = WS[k].data; if (d) n += t.cnt ? d.features.filter(t.cnt).length : d.features.length; if (WS[k].capped) capped = true; });
+          txt = String(n).replace(/\B(?=(\d{3})+(?!\d))/g, '.') + (capped ? '+' : '');
+        }
+      }
+      el.textContent = txt; el.className = cls;
+    });
+    Array.prototype.forEach.call(document.querySelectorAll('details.grp'), function (d) {
+      var n = d.querySelectorAll('input[type=checkbox]:checked').length, g = d.querySelector('.gcount');
+      if (g) g.textContent = n ? n + ' an' : '';
+    });
+  }
+  Object.keys(WT).forEach(function (id) {
+    $(id).addEventListener('change', function () {
+      var on = this.checked;
+      WT[id].lay.forEach(function (l) { vis(l, on); });
+      if (on) WT[id].src.forEach(wEnsure);
+      wPaint();
+    });
+  });
+  Object.keys(W_RASTER).forEach(function (id) {
+    $(id).addEventListener('change', function () { if (this.checked) resetStat(id); vis(id, this.checked); paintDots(); wPaint(); });
+  });
+  $('w-fwp-op').addEventListener('input', function () { if (map.getLayer('w-fwp')) map.setPaintProperty('w-fwp', 'raster-opacity', this.value / 100); });
+  map.on('moveend', function () { Object.keys(WS).forEach(function (k) { if (WS[k].view && wNeeded(k)) wEnsure(k); }); wPaint(); });
+  map.on('load', wPaint);
+  map.on('idle', wPaint);
+
+  // Angetippte Wien-Objekte für die Tabelle beim Punkt
+  function wienRows(point) {
+    var r = isMobile() ? 14 : 8, lays = [];
+    Object.keys(WT).forEach(function (id) { if ($(id).checked) WT[id].lay.forEach(function (l) { if (!/-(lbl|o)$/.test(l) && map.getLayer(l)) lays.push(l); }); });
+    if (!lays.length) return [];
+    var feats = map.queryRenderedFeatures([[point.x - r, point.y - r], [point.x + r, point.y + r]], { layers: lays });
+    var rows = {}, order = [];
+    feats.forEach(function (f) {
+      var s = WS[String(f.source).replace(/^w-/, '')]; if (!s || !s.info) return;
+      var v = s.info(f.properties || {}); if (!v || !v[1]) return;
+      if (!rows[v[0]]) { rows[v[0]] = []; order.push(v[0]); }
+      if (rows[v[0]].indexOf(v[1]) < 0 && rows[v[0]].length < 6) rows[v[0]].push(v[1]);
+    });
+    return order.map(function (k) { return [k, rows[k].join(' · ')]; });
+  }
+  // Haltestellen im Umkreis von 500 m, nächste zuerst, gleiche Namen zusammengefasst
+  function nearStops(lng, lat) {
+    return fetchT(wfsUrl('OEFFHALTESTOGD', '', grow([lng, lat, lng, lat], 550), 500), 20000).then(json).then(function (j) {
+      var by = {};
+      (j.features || []).forEach(function (f) {
+        var p = f.properties || {}, c = f.geometry && f.geometry.coordinates; if (!c) return;
+        var d = hav([lng, lat], c); if (d > 500) return;
+        var k = p.HTXT || '?';
+        if (!by[k]) by[k] = { d: d, lines: [] };
+        if (d < by[k].d) by[k].d = d;
+        String(p.HLINIEN || '').split(',').forEach(function (l) { l = l.trim(); if (l && by[k].lines.indexOf(l) < 0) by[k].lines.push(l); });
+      });
+      var list = Object.keys(by).map(function (k) { return { n: k, d: by[k].d, l: shortLines(by[k].lines.join(',')) }; })
+        .sort(function (a, b) { return a.d - b.d; }).slice(0, 4);
+      if (!list.length) return 'keine im Umkreis von 500 m';
+      return list.map(function (s) { return s.n + ' ' + fmtM(s.d) + (s.l ? ' (' + s.l + ')' : ''); }).join('; ');
+    });
+  }
+  // Widmung am Punkt aus der generalisierten Flächenwidmung
+  function widmungAt(lng, lat) {
+    var e = 0.00003;
+    return fetchT(wfsUrl('GENFLWIDMUNGOGD', '', [lng - e, lat - e, lng + e, lat + e], 20), 20000).then(json).then(function (j) {
+      var fs = j.features || [], hit = null;
+      fs.forEach(function (f) { if (!hit && f.geometry && inPoly([lng, lat], f.geometry)) hit = f; });
+      if (!hit) hit = fs[0];
+      if (!hit) return '';
+      var p = hit.properties || {};
+      return (p.WIDMUNG_TXT || p.WIDMUNGSKLASSE_TXT || '?') + (p.WIDMUNG ? ' (' + p.WIDMUNG + ')' : '') + (p.BEFRISTUNG_DATUM ? ', befristet bis ' + fmtD(p.BEFRISTUNG_DATUM) : '');
+    });
+  }
 
   // ---------- Rechen-Helfer ----------
   var R_EARTH = 6371008.8, RAD = Math.PI / 180;
@@ -743,7 +1254,7 @@
   function showPoint(e) {
     var lat = e.lngLat.lat.toFixed(6), lng = e.lngLat.lng.toFixed(6);
     var token = ++curToken;
-    cur = { lat: Number(lat), lng: Number(lng), gnr: '', ez: '', kgnr: '', kg: '', gemeinde: '', nutzung: '', kultur: '', bio: '' };
+    cur = { lat: Number(lat), lng: Number(lng), gnr: '', ez: '', kgnr: '', kg: '', gemeinde: '', nutzung: '', kultur: '', bio: '', widmung: '' };
     $('letter-box').hidden = true;
     marker.setLngLat(e.lngLat).addTo(map);
     var tbl = $('pt-table'); tbl.textContent = '';
@@ -784,6 +1295,7 @@
       }
       if (nat) addRow(tbl, 'Natura 2000', nat.properties.gebietsart === 'FFH' ? 'ja, FFH-Gebiet' : 'ja, Vogelschutzgebiet');
     }
+    wienRows(e.point).forEach(function (r) { addRow(tbl, r[0], r[1]); });
     // Nachgeladene Angaben: INVEKOS, Hochwasser, Haltestellen, Wald
     var pt = [cur.lng, cur.lat];
     var late = function (label, promise, fmt) {
@@ -796,10 +1308,16 @@
       return v[0] ? 'ja (' + ivNowLbl + ')' : v[1] ? 'nein, ' + ivPrev.label + ' noch gemeldet' : 'nein';
     });
     late('Im HQ100-Bereich', wmsHit(HQ_WMS, HQ_LAYER, cur.lng, cur.lat), function (v) { return v ? 'ja, Überflutungsfläche' : 'nein'; });
+    if (cur.lng > 16.17 && cur.lng < 16.59 && cur.lat > 48.11 && cur.lat < 48.33) {
+      late('Widmung Wien (vereinfacht)', widmungAt(cur.lng, cur.lat), function (v) { cur.widmung = v; return v || 'keine Widmungsfläche: meist Straße oder Gewässer, sonst außerhalb Wiens'; });
+    }
+    if (cur.lng > 15.9 && cur.lng < 16.9 && cur.lat > 47.8 && cur.lat < 48.6) {
+      late('Öffi-Haltestellen bis 500 m', nearStops(cur.lng, cur.lat), function (v) { return v; });
+    }
     var od = osmData([cur.lng, cur.lat, cur.lng, cur.lat], 6000, 1500, 1500);
     late('Nächster Bahnhof', od, function (d) { var n = nearestPt(d.rail, pt); return n && n.d <= 6000 ? fmtM(n.d) + (n.name ? ' · ' + n.name : '') : 'keiner im Umkreis von 6 km'; });
     late('Nächste Bushaltestelle', od, function (d) { var n = nearestPt(d.bus, pt); return n && n.d <= 1500 ? fmtM(n.d) + (n.name ? ' · ' + n.name : '') : 'keine im Umkreis von 1,5 km'; });
-    late('Nächster Wald', od, function (d) { var w = distToPolys(pt, d.wald); return w === 0 ? 'liegt im Wald' : w <= 1500 ? fmtM(w) : 'keiner im Umkreis von 1,5 km'; });
+    late('Nächster Wald', od, function (d) { var w = distToPolys(pt, d.wald); return w === 0 ? 'liegt im Wald' : w < 10 ? 'direkt am Waldrand' : w <= 1500 ? fmtM(w) : 'keiner im Umkreis von 1,5 km'; });
     map.getSource('sel').setData(sel);
     var box = $('pt-links'); box.textContent = '';
     addLink(box, 'Street View', 'https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=' + lat + ',' + lng);
@@ -846,7 +1364,7 @@
     merk.forEach(function (o, idx) {
       var it = document.createElement('div'); it.className = 'item';
       var t = document.createElement('b'); t.textContent = curLabel(o);
-      var meta = document.createElement('div'); meta.className = 'meta'; meta.textContent = [o.gemeinde, o.nutzung, o.kultur, o.bio === 'ja' ? 'Bio' : '', o.lat + ', ' + o.lng].filter(Boolean).join(' · ');
+      var meta = document.createElement('div'); meta.className = 'meta'; meta.textContent = [o.gemeinde, o.nutzung, o.widmung ? 'Widmung: ' + o.widmung : '', o.kultur, o.bio === 'ja' ? 'Bio' : '', o.lat + ', ' + o.lng].filter(Boolean).join(' · ');
       var sel = document.createElement('select'); sel.setAttribute('aria-label', 'Status');
       STATUS.forEach(function (s) { var op = document.createElement('option'); op.textContent = s; sel.appendChild(op); });
       sel.value = o.status || 'neu';
@@ -882,8 +1400,8 @@
   // Nummern als Text ausgeben, sonst macht Excel aus "01704" 1704 und aus "12/3" ein Datum
   function asText(v) { return v ? '="' + String(v).replace(/"/g, '') + '"' : ''; }
   function merkRows() {
-    var rows = [['Katastralgemeinde', 'KG-Nummer', 'Grundstück', 'Einlagezahl', 'Gemeinde', 'Nutzung', 'Kultur', 'Bio', 'Status', 'Notiz', 'Koordinaten', 'Gemerkt am', 'Google Maps']];
-    merk.forEach(function (o) { rows.push([o.kg, asText(o.kgnr), asText(o.gnr), asText(o.ez), o.gemeinde, o.nutzung, o.kultur, o.bio, o.status, o.note, o.lat + ', ' + o.lng, o.ts, 'https://www.google.com/maps/search/?api=1&query=' + o.lat + ',' + o.lng]); });
+    var rows = [['Katastralgemeinde', 'KG-Nummer', 'Grundstück', 'Einlagezahl', 'Gemeinde', 'Nutzung', 'Widmung (Wien)', 'Kultur', 'Bio', 'Status', 'Notiz', 'Koordinaten', 'Gemerkt am', 'Google Maps']];
+    merk.forEach(function (o) { rows.push([o.kg, asText(o.kgnr), asText(o.gnr), asText(o.ez), o.gemeinde, o.nutzung, o.widmung || '', o.kultur, o.bio, o.status, o.note, o.lat + ', ' + o.lng, o.ts, 'https://www.google.com/maps/search/?api=1&query=' + o.lat + ',' + o.lng]); });
     return rows;
   }
   function merkCsv() {
