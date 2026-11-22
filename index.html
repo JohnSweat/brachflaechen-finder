@@ -98,6 +98,16 @@
   .exp p { font-size: 13px; margin: 0 0 7px; }
   .sub-h { font-size: 12.5px; color: var(--muted); margin: 8px 0 2px; }
   ol.how b { font-weight: 600; }
+  #merk-count { font-weight: 400; color: var(--muted); }
+  .zp { display: grid; gap: 5px; max-height: 380px; overflow: auto; margin-top: 2px; }
+  .zp h4 { margin: 6px 0 0; font-size: 11.5px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+  .zpi > button { display: block; width: 100%; text-align: left; background: #fff; color: var(--ink); border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; font-size: 13px; line-height: 1.35; }
+  .zpi > button b { font-weight: 600; }
+  .zpi > button span { display: block; color: var(--muted); font-size: 12px; margin-left: 15px; }
+  .zpi .st { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 6px; vertical-align: 1px; }
+  .zpi.open > button { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+  .zpd { margin: 4px 0 6px; }
+  .zpd table.kv { font-size: 12.5px; }
   @media (max-width: 760px) {
     #app { display: block; height: 100vh; height: 100dvh; }
     #map { height: 100vh; height: 100dvh; }
@@ -119,7 +129,7 @@
 <div id="app">
   <aside id="panel">
     <h1>Brachflächen-Finder</h1>
-    <p class="sub">Verwilderte Grundstücke in Österreich am Bildschirm aufspüren: Luftbild, Kataster, Agrarförderung und Street View in einer Karte; in Wien auch Öffis, Widmung, Planungen und Energieanlagen. <span class="ver">Stand 22.11.2026</span></p>
+    <p class="sub">Verwilderte Grundstücke in Österreich am Bildschirm aufspüren: Luftbild, Kataster, Agrarförderung und Street View in einer Karte; in Wien auch Öffis, Widmung, Planungen und Energieanlagen. <span class="ver">Stand 22.11.2026 (2)</span></p>
     <div class="warn" id="offline" hidden><b>Das ist eine gespeicherte Kopie der Seite.</b> Als Datei geöffnet fehlen Grundstücksdaten und Kopieren, und neue Funktionen kommen nicht an. Bitte die Seite über den Link öffnen und dort zum Startbildschirm hinzufügen.<br><a class="btn" href="https://johnsweat.github.io/brachflaechen-finder/">Aktuelle Seite öffnen</a></div>
 
     <details class="card grp" id="help" open>
@@ -152,7 +162,7 @@
             <p><b>E-Laden, Carsharing, Leihrad, Taxi.</b> Standorte von E-Ladestellen, Carsharing-Plätzen und Taxistandplätzen. Die Leihrad-Stationen von WienMobil Rad kommen direkt vom Betreiber nextbike, weil der Citybike-Datensatz der Stadt leer ist.</p>
             <p><b>Rad.</b> Radwege nach Art, also vom Autoverkehr getrennt, markiert, Radroute oder Gelände, und das Hauptradverkehrsnetz mit seinen geplanten Teilen.</p>
             <p><b>Parken und ruhige Straßen.</b> Kurzparkzonen mit Zeiten, Garagen und Park &amp; Ride, Tempo-30-Zonen, Begegnungszonen, Wohnstraßen und Fußgängerzonen. Zeigt, wie ruhig und wie gut erreichbar eine Gegend ist.</p>
-            <p><b>Was gebaut und geplant wird.</b> Verkehrswirksame Baustellen mit Zeitraum, der U-Bahn-Ausbau mit geplanten Eröffnungsjahren, neue Straßenbahnstrecken und geplante Straßen. Umbruchflächen sind laut Realnutzung 2024 Baustellen oder Transformationsflächen, oft künftiges Bauland.</p>
+            <p><b>Was gebaut und geplant wird.</b> Verkehrswirksame Baustellen mit Beginn, Ende, Bauherr und Beschreibung: rot läuft, orange beginnt bald, ab Zoom 14 steht das Datum daneben. U-Bahn-Ausbau, neue Straßenbahnstrecken und geplante Straßen haben in den Daten nur das Eröffnungsjahr; den Baustart findest du über „Zeitplan im Netz suchen“. Der Zeitplan in der Gruppe listet alles im Kartenausschnitt nach Datum; Umbruchflächen sind laut Realnutzung 2024 Baustellen und Transformationsflächen.</p>
             <p><b>Widmung und Bauverfahren.</b> Der amtliche Flächenwidmungsplan in Farbe: Grün ist Grünland, Orange und Braun Bauland, Violett Betriebs- und Industriegebiet. Widmungsverfahren und Bausperren zeigen, wo sich die Widmung gerade ändert; in Klimaschutzgebieten brauchen Neubauten eine klimafreundliche Heizung.</p>
             <p><b>Strom, Energie, Industrie.</b> Kraftwerke und Energieanlagen der Stadt mit Leistung, darunter die Windräder, und größere geförderte PV-Anlagen. Die Widmung zeigt, wo Gewerbe und Industrie erlaubt sind; die Realnutzung 2024, wo tatsächlich Industrie, Lager, Deponien oder Militär sind.</p>
           </div>
@@ -185,16 +195,18 @@
       </div>
     </div>
 
-    <h2>Merkliste <span id="merk-count"></span></h2>
-    <div class="card">
-      <p class="hint" id="merk-empty" style="margin-top:0">Noch nichts gemerkt. Parzelle antippen und „Merken" wählen. Die Liste bleibt nur in diesem Browser auf diesem Gerät.</p>
-      <div id="merk-list" class="list"></div>
-      <div class="links">
-        <button type="button" class="ghost" id="merk-csv">Als Tabelle speichern (CSV)</button>
-        <button type="button" class="ghost" id="merk-copy">Tabelle kopieren</button>
+    <details class="card grp" id="merk-card" open>
+      <summary>Merkliste <span id="merk-count"></span></summary>
+      <div class="gbody">
+        <p class="hint" id="merk-empty" style="margin-top:0">Noch nichts gemerkt. Parzelle antippen und „Merken" wählen. Die Liste bleibt nur in diesem Browser auf diesem Gerät.</p>
+        <div id="merk-list" class="list"></div>
+        <div class="links">
+          <button type="button" class="ghost" id="merk-csv">Als Tabelle speichern (CSV)</button>
+          <button type="button" class="ghost" id="merk-copy">Tabelle kopieren</button>
+        </div>
+        <p class="hint" id="merk-status"></p>
       </div>
-      <p class="hint" id="merk-status"></p>
-    </div>
+    </details>
 
     <h2>Karte: ganz Österreich</h2>
 
@@ -350,11 +362,16 @@
     <details class="card grp">
       <summary>Was gebaut und geplant wird <span class="gcount"></span></summary>
       <div class="gbody legend">
-        <div class="row"><input type="checkbox" id="w-baust"><span class="sw pt" style="background:#dc2626"></span><label for="w-baust">Baustellen mit Zeitraum</label><span class="cnt" data-cnt="w-baust"></span></div>
+        <div class="row"><input type="checkbox" id="w-baust"><span class="sw pt" style="background:#dc2626"></span><label for="w-baust">Baustellen mit Beginn und Ende</label><span class="cnt" data-cnt="w-baust"></span></div>
+        <div class="swl"><span><i style="background:#dc2626"></i>läuft</span><span><i style="background:#f59e0b"></i>beginnt bald</span><span>Datum ab Zoom 14</span></div>
         <div class="row"><input type="checkbox" id="w-ubplan"><span class="sw dash" style="border-top-color:#00a3a6"></span><label for="w-ubplan">U-Bahn-Ausbau U2/U5 mit Stationen</label><span class="cnt" data-cnt="w-ubplan"></span></div>
         <div class="row"><input type="checkbox" id="w-bimplan"><span class="sw dash" style="border-top-color:#d1202f"></span><label for="w-bimplan">Neue Straßenbahnstrecken</label><span class="cnt" data-cnt="w-bimplan"></span></div>
         <div class="row"><input type="checkbox" id="w-strplan"><span class="sw dash" style="border-top-color:#b45309"></span><label for="w-strplan">Straßenplanung: Autobahn, Schnellstraße, Hauptstraße</label><span class="cnt" data-cnt="w-strplan"></span></div>
         <div class="row"><input type="checkbox" id="w-transf"><span class="sw" style="background:rgba(244,63,94,.45)"></span><label for="w-transf">Umbruchflächen und Großbaustellen</label><span class="cnt" data-cnt="w-transf"></span></div>
+        <div id="zp" hidden>
+          <p class="sub-h">Zeitplan im Kartenausschnitt <span id="zp-n"></span></p>
+          <div id="zp-list" class="zp"></div>
+        </div>
       </div>
     </details>
 
@@ -400,6 +417,12 @@
   if (!/^https?:$/.test(location.protocol)) $('offline').hidden = false;
   try { if (localStorage.getItem('brach-help') === 'zu') $('help').open = false; } catch (e) {}
   $('help').addEventListener('toggle', function () { try { localStorage.setItem('brach-help', this.open ? 'auf' : 'zu'); } catch (e) {} });
+  Array.prototype.forEach.call(document.querySelectorAll('details.grp'), function (d) {
+    if (d.id === 'help') return;
+    var s = d.querySelector('summary'), key = 'brach-open:' + (d.id || (s && s.firstChild ? s.firstChild.textContent.trim() : ''));
+    try { var v = localStorage.getItem(key); if (v) d.open = v === 'auf'; } catch (e) {}
+    d.addEventListener('toggle', function () { try { localStorage.setItem(key, d.open ? 'auf' : 'zu'); } catch (e) {} });
+  });
   if (!window.maplibregl) { $('fatal').style.display = 'grid'; return; }
 
   // ---------- Konfiguration ----------
@@ -509,7 +532,44 @@
     'w-fwpcode': { tiles: WMTS_W('flwbplgen', 'grau', 'png'), bounds: WIEN_BOUNDS, max: 19, op: 1, minzoom: 15, top: true }
   };
   var RANG_TXT = { B: 'Basisroute', G: 'Grundnetz', E: 'erweitertes Grundnetz' };
-  function bauInfo(p) { return ['Baustelle', [String(p.BEZEICHNUNG || '').trim(), p.BEHINDERUNGSART, (p.OBJEKT_BEGINN ? fmtD(p.OBJEKT_BEGINN) : '?') + ' bis ' + (p.OBJEKT_ENDE ? fmtD(p.OBJEKT_ENDE) : '?')].filter(Boolean).join(' · ')]; }
+  // Datum und Status für Baustellen und Planungen
+  var TODAY = (function () { var d = new Date(); return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2); })();
+  function isoD(s) { var m = /(\d{4}-\d{2}-\d{2})/.exec(s || ''); return m ? m[1] : ''; }
+  function kurzD(iso) { return !iso ? '?' : iso.slice(0, 4) === TODAY.slice(0, 4) ? iso.slice(8, 10) + '.' + iso.slice(5, 7) + '.' : iso.slice(5, 7) + '/' + iso.slice(0, 4); }
+  function restTxt(iso) { var d = Math.round((Date.parse(iso) - Date.parse(TODAY)) / 864e5); return !isFinite(d) || d < 0 ? '' : d > 60 ? ' (noch ' + Math.round(d / 30.4) + ' Monate)' : ' (noch ' + d + (d === 1 ? ' Tag)' : ' Tage)'); }
+  // In den Baustellentexten fehlen oft Leerzeichen ("DieArbeiten")
+  function cleanTxt(s) { return tx(s).replace(/([a-zäöüß])([A-ZÄÖÜ][a-zäöüß])/g, '$1 $2').replace(/\s+/g, ' '); }
+  function jahr(s) { var m = /\d{4}/.exec(tx(s)); return m ? m[0] : ''; }
+  function phase(s) { var m = /(\d+)\./.exec(tx(s)); return m ? m[1] : ''; }
+  function phaseTxt(s) { return phase(s) ? phase(s) + '. Ausbauphase' : tx(s); }
+  function eroeff(p) { return tx(p.EROEFF_JAHR) ? (tx(p.EROEFF_MONAT) ? ('0' + tx(p.EROEFF_MONAT)).slice(-2) + '/' : '') + tx(p.EROEFF_JAHR) : ''; }
+  function bauPrep(f) {
+    var p = f.properties, a = isoD(p.OBJEKT_BEGINN), b = isoD(p.OBJEKT_ENDE);
+    p._st = a && a > TODAY ? 'bald' : b && b < TODAY ? 'vorbei' : 'läuft';
+    p._lbl = p._st === 'bald' ? 'ab ' + kurzD(a) : p._st === 'vorbei' ? 'beendet' : 'bis ' + kurzD(b);
+  }
+  function bauInfo(p) {
+    var a = isoD(p.OBJEKT_BEGINN), b = isoD(p.OBJEKT_ENDE);
+    var zeit = p._st === 'bald' ? 'beginnt am ' + fmtD(a) + ', geplant bis ' + fmtD(b) : p._st === 'vorbei' ? 'beendet am ' + fmtD(b) : 'läuft seit ' + fmtD(a) + ', geplant bis ' + fmtD(b) + restTxt(b);
+    var k = [tx(p.ANSPRECHPERSON), tx(p.ANSPRECHPERSON_TEL)].filter(Boolean).join(', ');
+    return [['Baustelle', tx(p.BEZEICHNUNG)], ['Zeitraum', zeit],
+      ['Arbeiten', [tx(p.BEHINDERUNGSART), tx(p.ANTRAGSTELLER) ? 'Bauherr: ' + tx(p.ANTRAGSTELLER) : ''].filter(Boolean).join(' · ')],
+      tx(p.PRESSETEXT) ? ['Beschreibung', cleanTxt(p.PRESSETEXT)] : null, k ? ['Auskunft', k] : null];
+  }
+  function bauZp(p) {
+    if (p._st === 'vorbei') return null;
+    var a = isoD(p.OBJEKT_BEGINN), b = isoD(p.OBJEKT_ENDE);
+    return { g: p._st === 'bald' ? 1 : 0, key: p._st === 'bald' ? a : b, title: tx(p.BEZEICHNUNG),
+      when: p._st === 'bald' ? 'ab ' + fmtD(a) + ' bis ' + fmtD(b) : 'bis ' + fmtD(b) + restTxt(b), what: [tx(p.BEHINDERUNGSART), tx(p.ANTRAGSTELLER)].filter(Boolean).join(' · ') };
+  }
+  // Eröffnungsjahre einer U-Bahn-Linie aus ihren geplanten Stationen derselben Ausbauphase
+  function ubJahre(p) {
+    var d = WS.ubhalt && WS.ubhalt.data, ys = [];
+    if (d) d.features.forEach(function (f) { var q = f.properties; if (q.HBEM === p.NAME && phase(q.KOMMENTAR) === phase(p.KOMMENTAR) && q.EROEFF_JAHR && ys.indexOf(String(q.EROEFF_JAHR)) < 0) ys.push(String(q.EROEFF_JAHR)); });
+    return ys.sort().join(', ');
+  }
+  function verfStand(p) { return [tx(p.VERFAHRENSSTAND), p.BEGINN_OEFFENTLICHE_AUFLAGE ? 'öffentliche Auflage ' + fmtD(p.BEGINN_OEFFENTLICHE_AUFLAGE) + ' bis ' + fmtD(p.ENDE_OEFFENTLICHE_AUFLAGE) : '', p.KUNDMACHUNGSDATUM ? 'kundgemacht ' + fmtD(p.KUNDMACHUNGSDATUM) : ''].filter(Boolean).join(', '); }
+  function spStand(p) { return [tx(p.VERFAHRENSSTAND), p.BAUSPERRENFRIST ? 'gilt bis ' + fmtD(p.BAUSPERRENFRIST) : '', p.KUNDMACHUNGSDATUM ? 'kundgemacht ' + fmtD(p.KUNDMACHUNGSDATUM) : ''].filter(Boolean).join(', '); }
   function linInfo(p) { return ['Öffi-Linie', p.LBEZEICHNUNG + (p.LTYPTXT ? ' (' + p.LTYPTXT + ')' : '')]; }
   // Vektorquellen. t = Ebene(n) beim WFS der Stadt, cql = Filter am Server, view = nur der sichtbare Ausschnitt ab dieser Zoomstufe
   var WS = {
@@ -530,17 +590,39 @@
     begeg: { t: 'BEGEGNUNGSZONEOGD', info: function (p) { return ['Begegnungszone', p.ADRESSE || 'ja']; } },
     wohnstr: { t: 'WOHNSTRASSEOGD', info: function (p) { return ['Wohnstraße', p.ADRESSE || 'ja']; } },
     fuzo: { t: 'FUSSGEHERZONEOGD', info: function (p) { return ['Fußgängerzone', (p.ADRESSE || 'ja') + (p.AUSN_TEXT ? ' · ' + tx(p.AUSN_TEXT) + (p.ZEITRAUM ? ' (' + tx(p.ZEITRAUM) + ')' : '') : '')]; } },
-    baup: { t: 'BAUSTELLENPKTOGD', info: bauInfo },
-    baul: { t: 'BAUSTELLENLINOGD', info: bauInfo },
-    ubplan: { t: 'PLANUNGUBAHNOGD', info: function (p) { return ['U-Bahn-Ausbau', tx(p.NAME) + (tx(p.KOMMENTAR) ? ' · ' + tx(p.KOMMENTAR) : '')]; } },
-    ubhalt: { t: 'PLANUNGUBHALTOGD', info: function (p) { return ['Geplante U-Bahn-Station', (p.HTXT || '') + (p.HBEM ? ' (' + p.HBEM + ')' : '') + (p.EROEFF_JAHR ? ' · Eröffnung geplant ' + p.EROEFF_JAHR : '')]; } },
-    bimplan: { t: 'PLANUNGBIMOGD', info: function (p) { return ['Straßenbahn in Planung', 'Linie ' + tx(p.LINIE) + (tx(p.KOMMENTAR) ? ' · ' + tx(p.KOMMENTAR) : '') + (tx(p.EROEFFNUNG) ? ' · Eröffnung ' + tx(p.EROEFFNUNG) : '')]; } },
-    bimhalt: { t: 'PLANUNGBIMHALTOGD', info: function (p) { return ['Geplante Haltestelle', (p.HST_NAME || '') + ' (Linie ' + p.LINIE + ')']; } },
-    strpl: { t: ['PLANUNGAUTOBOGD', 'PLANUNGSCHNELLOGD', 'PLANUNGHPTSTROGD'], info: function (p) { return ['Straßenplanung', [tx(p.NAME), tx(p.STATUS), tx(p.KOMMENTAR), tx(p.FERTIG) ? 'fertig ' + tx(p.FERTIG) : ''].filter(Boolean).join(' · ')]; } },
-    strplf: { t: ['PLANUNGASTOGD', 'PLANUNGKNOTENOGD'], info: function (p) { return ['Straßenplanung', [tx(p.NAME), tx(p.FERTIG) ? 'fertig ' + tx(p.FERTIG) : ''].filter(Boolean).join(' · ')]; } },
+    baup: { t: 'BAUSTELLENPKTOGD', prep: bauPrep, info: bauInfo, zp: bauZp },
+    baul: { t: 'BAUSTELLENLINOGD', prep: bauPrep, info: bauInfo, zp: bauZp },
+    ubplan: { t: 'PLANUNGUBAHNOGD',
+      info: function (p) { var j = ubJahre(p); return [['U-Bahn-Ausbau', tx(p.NAME) + (tx(p.KOMMENTAR) ? ', ' + phaseTxt(p.KOMMENTAR) : '')], j ? ['Eröffnung geplant', j] : null]; },
+      q: function (p) { return { t: tx(p.NAME) + (phase(p.KOMMENTAR) ? ' ' + phaseTxt(p.KOMMENTAR) : ''), q: 'Wiener Linien ' + tx(p.NAME) + ' ' + phaseTxt(p.KOMMENTAR) + ' Baustart Eröffnung' }; } },
+    ubhalt: { t: 'PLANUNGUBHALTOGD',
+      info: function (p) { return [['Geplante U-Bahn-Station', tx(p.HTXT) + (tx(p.HBEM) ? ' (' + tx(p.HBEM) + ')' : '')], eroeff(p) ? ['Eröffnung geplant', eroeff(p)] : null, tx(p.KOMMENTAR) ? ['Ausbauphase', phaseTxt(p.KOMMENTAR)] : null]; },
+      zp: function (p) { return { g: 2, key: tx(p.EROEFF_JAHR) || '9999', title: tx(p.HBEM) + (phase(p.KOMMENTAR) ? ', ' + phaseTxt(p.KOMMENTAR) : ''), when: eroeff(p) ? 'Eröffnung geplant ' + eroeff(p) : 'Termin offen', what: tx(p.HTXT) }; },
+      q: function (p) { return { t: tx(p.HBEM) + (phase(p.KOMMENTAR) ? ' ' + phaseTxt(p.KOMMENTAR) : ''), q: 'Wiener Linien ' + tx(p.HBEM) + ' ' + phaseTxt(p.KOMMENTAR) + ' Baustart Eröffnung' }; } },
+    bimplan: { t: 'PLANUNGBIMOGD', prep: function (f) { f.properties._lbl = 'Linie ' + tx(f.properties.LINIE); },
+      info: function (p) { return [['Straßenbahn in Planung', 'Linie ' + tx(p.LINIE) + (tx(p.KOMMENTAR) ? ': ' + tx(p.KOMMENTAR) : '')], ['Eröffnung', tx(p.EROEFFNUNG) || 'kein Termin in den Daten']]; },
+      zp: function (p) { return { g: 2, key: jahr(p.EROEFFNUNG) || '9999', title: 'Straßenbahn Linie ' + tx(p.LINIE), when: tx(p.EROEFFNUNG) ? 'Eröffnung ' + tx(p.EROEFFNUNG) : 'Termin offen', what: tx(p.KOMMENTAR) }; },
+      q: function (p) { return { t: 'Linie ' + tx(p.LINIE) + (tx(p.KOMMENTAR) ? ' ' + tx(p.KOMMENTAR) : ''), q: 'Wien Straßenbahn Linie ' + tx(p.LINIE) + ' ' + tx(p.KOMMENTAR) + ' Baustart' }; } },
+    bimhalt: { t: 'PLANUNGBIMHALTOGD',
+      info: function (p) { return [['Geplante Haltestelle', tx(p.HST_NAME) + ' (Linie ' + tx(p.LINIE) + ')'], tx(p.EROEFFNUNG) ? ['Eröffnung', tx(p.EROEFFNUNG)] : null]; },
+      q: function (p) { return { t: 'Linie ' + tx(p.LINIE), q: 'Wien Straßenbahn Linie ' + tx(p.LINIE) + ' neue Strecke Baustart' }; } },
+    strpl: { t: ['PLANUNGAUTOBOGD', 'PLANUNGSCHNELLOGD', 'PLANUNGHPTSTROGD'], prep: function (f) { var p = f.properties; p._lbl = tx(p.NAME) + (jahr(p.FERTIG) ? ' · ' + tx(p.FERTIG) : ''); },
+      info: function (p) { return [['Straßenplanung', tx(p.NAME) + (tx(p.KOMMENTAR) ? ', ' + tx(p.KOMMENTAR) : '')], ['Fertigstellung', tx(p.FERTIG) || 'kein Termin in den Daten'], tx(p.STATUS) || tx(p.STAND) ? ['Stand', [tx(p.STATUS), tx(p.STAND)].filter(Boolean).join(', ')] : null, tx(p.QUELLE) ? ['Zuständig', tx(p.QUELLE)] : null]; },
+      zp: function (p) { return { g: 2, key: jahr(p.FERTIG) || '9998', title: tx(p.NAME), when: tx(p.FERTIG) ? 'fertig ' + tx(p.FERTIG) : 'Termin offen', what: [tx(p.STATUS), tx(p.KOMMENTAR), tx(p.QUELLE)].filter(Boolean).join(' · ') }; },
+      q: function (p) { return { t: tx(p.NAME), q: tx(p.NAME) + ' ' + (tx(p.QUELLE) === 'ASFINAG' ? 'ASFINAG' : 'Wien') + ' Baustart' }; } },
+    strplf: { t: ['PLANUNGASTOGD', 'PLANUNGKNOTENOGD'],
+      info: function (p) { return [['Straßenplanung', tx(p.NAME)], ['Fertigstellung', tx(p.FERTIG) || 'kein Termin in den Daten'], tx(p.QUELLE) ? ['Zuständig', tx(p.QUELLE)] : null]; },
+      zp: function (p) { return { g: 2, key: jahr(p.FERTIG) || '9998', title: tx(p.NAME), when: tx(p.FERTIG) ? 'fertig ' + tx(p.FERTIG) : 'Termin offen', what: tx(p.QUELLE) }; },
+      q: function (p) { return { t: tx(p.NAME), q: tx(p.NAME) + ' Wien Straßenbau Baustart' }; } },
     transf: { t: 'REALNUT2024OGD', cql: 'CODE=154', info: function (p) { return ['Realnutzung 2024', p.LEV3 || '']; } },
-    verf: { t: 'SMBABOEFFAUFLAGEOGD', info: function (p) { return ['Widmungsverfahren', 'Plan ' + p.PLANNUMMER + ' · ' + (p.NAME || '') + ' · ' + (p.VERFAHRENSSTAND || '') + (p.BEGINN_OEFFENTLICHE_AUFLAGE ? ' · Auflage ' + fmtD(p.BEGINN_OEFFENTLICHE_AUFLAGE) + ' bis ' + fmtD(p.ENDE_OEFFENTLICHE_AUFLAGE) : '')]; } },
-    bausp: { t: ['BAUSPERRE82OGD', 'BAUSPERRE86OGD'], info: function (p) { return ['Bausperre', [p.NAME, p.VERFAHRENSSTAND, p.BAUSPERRENFRIST ? 'Frist bis ' + fmtD(p.BAUSPERRENFRIST) : '', p.KUNDMACHUNGSDATUM ? 'kundgemacht ' + fmtD(p.KUNDMACHUNGSDATUM) : ''].filter(Boolean).join(' · ')]; } },
+    verf: { t: 'SMBABOEFFAUFLAGEOGD',
+      info: function (p) { return [['Widmungsverfahren', 'Plan ' + tx(p.PLANNUMMER) + ': ' + tx(p.NAME)], ['Stand', verfStand(p)]]; },
+      zp: function (p) { return { g: 3, key: isoD(p.ENDE_OEFFENTLICHE_AUFLAGE) || isoD(p.KUNDMACHUNGSDATUM) || '9999', title: 'Plan ' + tx(p.PLANNUMMER) + ': ' + tx(p.NAME), when: verfStand(p), what: tx(p.BEZIRK1) ? tx(p.BEZIRK1) + '. Bezirk' : '' }; },
+      q: function (p) { return { t: 'Plan ' + tx(p.PLANNUMMER), q: 'Wien Flächenwidmung Plandokument ' + tx(p.PLANNUMMER) + ' ' + tx(p.NAME) }; } },
+    bausp: { t: ['BAUSPERRE82OGD', 'BAUSPERRE86OGD'],
+      info: function (p) { return [['Bausperre', tx(p.NAME)], ['Stand', spStand(p)]]; },
+      zp: function (p) { return { g: 3, key: isoD(p.BAUSPERRENFRIST) || '9999', title: 'Bausperre ' + tx(p.NAME).replace(/^BSP\s*-?\s*/, ''), when: spStand(p), what: tx(p.PLANNUMMER) ? 'Plan ' + tx(p.PLANNUMMER) : '' }; },
+      q: function (p) { return { t: 'Plan ' + tx(p.PLANNUMMER), q: 'Wien Plandokument ' + tx(p.PLANNUMMER) + ' ' + tx(p.NAME) }; } },
     erp: { t: 'ENERGIERAUMPLANOGD', info: function (p) { return ['Klimaschutzgebiet', 'Energieraumplan ' + (p.ERPLABEL || '')]; } },
     energie: { t: 'ENSONSTANLOGD', info: function (p) { var el = Number(p.ELEKTR_BRU), th = Number(p.THERM_BRUT); return ['Energieanlage', (p.ART || '') + (p.ENERGIEQUE ? ' · ' + p.ENERGIEQUE : '') + (el > 0 ? ' · ' + fmtN(el) + ' MW Strom' : '') + (th > 0 ? ' · ' + fmtN(th) + ' MW Wärme' : '')]; } },
     pv: { t: 'ENGEFPVANLOGD', cql: 'LEISTUNG>=100', info: function (p) { return ['PV-Anlage (gefördert)', fmtN(p.LEISTUNG) + ' kWp' + (p.BAUJAHR ? ' · Baujahr ' + p.BAUJAHR : '')]; } },
@@ -594,7 +676,7 @@
     { z: 'line', id: 'w-wlb', type: 'line', source: 'w-rail', filter: ['==', LT, 6], paint: { 'line-color': '#00838f', 'line-width': ['interpolate', ['linear'], ['zoom'], 9, 1.5, 16, 4] } },
     { z: 'line', id: 'w-sbahn', type: 'line', source: 'w-rail', filter: ['==', LT, 5], paint: { 'line-color': '#0a64ad', 'line-width': ['interpolate', ['linear'], ['zoom'], 9, 1.5, 16, 4] } },
     { z: 'line', id: 'w-ubahn', type: 'line', source: 'w-rail', filter: ['==', LT, 4], layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': U_COL, 'line-width': ['interpolate', ['linear'], ['zoom'], 9, 2, 16, 6] } },
-    { z: 'line', id: 'w-baul', type: 'line', source: 'w-baul', paint: { 'line-color': '#dc2626', 'line-width': 5, 'line-opacity': 0.85 } },
+    { z: 'line', id: 'w-baul', type: 'line', source: 'w-baul', paint: { 'line-color': ['match', ['get', '_st'], 'bald', '#f59e0b', 'vorbei', '#9ca3af', '#dc2626'], 'line-width': 5, 'line-opacity': 0.85 } },
     { z: 'line', id: 'w-strpl', type: 'line', source: 'w-strpl', paint: { 'line-color': ['match', ['get', '_t'], 'PLANUNGHPTSTROGD', '#f59e0b', '#b45309'], 'line-width': 4, 'line-dasharray': [2, 1] } },
     { z: 'line', id: 'w-bimplan', type: 'line', source: 'w-bimplan', paint: { 'line-color': '#d1202f', 'line-width': 4, 'line-dasharray': [1.5, 1] } },
     { z: 'line', id: 'w-ubplan', type: 'line', source: 'w-ubplan', paint: { 'line-color': ['match', ['get', 'NAME'], 'U2', '#a762a3', 'U5', '#00a3a6', '#0b3d91'], 'line-width': 6, 'line-dasharray': [1.5, 1] } },
@@ -607,7 +689,7 @@
     { z: 'pt', id: 'w-garage', type: 'circle', source: 'w-garage', paint: { 'circle-radius': ['match', ['get', 'PARK_AND_RIDE'], 'Y', 7, 4.5], 'circle-color': ['match', ['get', 'PARK_AND_RIDE'], 'Y', '#1d4ed8', '#64748b'], 'circle-stroke-color': '#ffffff', 'circle-stroke-width': 1.5 } },
     { z: 'pt', id: 'w-pv', type: 'circle', source: 'w-pv', paint: { 'circle-radius': ['interpolate', ['linear'], ['to-number', ['get', 'LEISTUNG'], 100], 100, 3.5, 1000, 6, 3000, 8], 'circle-color': '#fbbf24', 'circle-stroke-color': '#92400e', 'circle-stroke-width': 1 } },
     { z: 'pt', id: 'w-energie', type: 'circle', source: 'w-energie', paint: { 'circle-radius': ['interpolate', ['linear'], ['max', ['to-number', ['get', 'ELEKTR_BRU'], 0], ['to-number', ['get', 'THERM_BRUT'], 0]], 0, 5, 5, 7, 50, 10, 500, 15], 'circle-color': ['match', ['get', 'TYP'], 'WK', '#0ea5e9', 'SK', '#f59e0b', 'WA', '#1d4ed8', 'GA', '#6b7280', 'MV', '#7c2d12', 'BM', '#65a30d', 'ND', '#db2777', '#111111'], 'circle-stroke-color': '#ffffff', 'circle-stroke-width': 2 } },
-    { z: 'pt', id: 'w-baup', type: 'circle', source: 'w-baup', paint: { 'circle-radius': 7, 'circle-color': '#dc2626', 'circle-stroke-color': '#ffffff', 'circle-stroke-width': 2 } },
+    { z: 'pt', id: 'w-baup', type: 'circle', source: 'w-baup', paint: { 'circle-radius': 7, 'circle-color': ['match', ['get', '_st'], 'bald', '#f59e0b', 'vorbei', '#9ca3af', '#dc2626'], 'circle-stroke-color': '#ffffff', 'circle-stroke-width': 2 } },
     { z: 'pt', id: 'w-bimhalt', type: 'circle', source: 'w-bimhalt', paint: { 'circle-radius': 4.5, 'circle-color': '#ffffff', 'circle-stroke-color': '#d1202f', 'circle-stroke-width': 2.5 } },
     { z: 'pt', id: 'w-ubhalt', type: 'circle', source: 'w-ubhalt', paint: { 'circle-radius': 6, 'circle-color': '#ffffff', 'circle-stroke-color': ['match', ['get', 'HBEM'], 'U2', '#a762a3', 'U5', '#00a3a6', '#0b3d91'], 'circle-stroke-width': 3 } },
     { z: 'pt', id: 'w-ubahn-lbl', type: 'symbol', source: 'w-rail', minzoom: 13, filter: ['==', LT, 4], layout: wLineLbl(), paint: W_LINE_TXT },
@@ -616,7 +698,11 @@
     { z: 'pt', id: 'w-bus-lbl', type: 'symbol', source: 'w-bus', minzoom: 15, filter: ['in', LT, ['literal', [2, 3]]], layout: wLineLbl(), paint: W_LINE_TXT },
     { z: 'pt', id: 'w-halt-lbl', type: 'symbol', source: 'w-halt', minzoom: 15, filter: ['<', LT, 9], layout: wLbl(['to-string', ['get', 'HTXT']]), paint: W_TXT },
     { z: 'pt', id: 'w-ubhalt-lbl', type: 'symbol', source: 'w-ubhalt', minzoom: 12, layout: wLbl(['concat', ['to-string', ['get', 'HTXT']], ' ', ['to-string', ['coalesce', ['get', 'EROEFF_JAHR'], '']]], 12), paint: W_TXT },
-    { z: 'pt', id: 'w-energie-lbl', type: 'symbol', source: 'w-energie', minzoom: 13, layout: wLbl(['to-string', ['get', 'ART']]), paint: W_TXT }
+    { z: 'pt', id: 'w-energie-lbl', type: 'symbol', source: 'w-energie', minzoom: 13, layout: wLbl(['to-string', ['get', 'ART']]), paint: W_TXT },
+    { z: 'pt', id: 'w-baup-lbl', type: 'symbol', source: 'w-baup', minzoom: 14, layout: wLbl(['to-string', ['get', '_lbl']]), paint: W_TXT },
+    { z: 'pt', id: 'w-baul-lbl', type: 'symbol', source: 'w-baul', minzoom: 14, layout: { 'symbol-placement': 'line-center', 'text-field': ['to-string', ['get', '_lbl']], 'text-font': ['Roboto Bold'], 'text-size': 11 }, paint: W_TXT },
+    { z: 'pt', id: 'w-strpl-lbl', type: 'symbol', source: 'w-strpl', minzoom: 12, layout: { 'symbol-placement': 'line', 'text-field': ['to-string', ['get', '_lbl']], 'text-font': ['Roboto Bold'], 'text-size': 11, 'symbol-spacing': 400 }, paint: W_TXT },
+    { z: 'pt', id: 'w-bimplan-lbl', type: 'symbol', source: 'w-bimplan', minzoom: 12, layout: { 'symbol-placement': 'line', 'text-field': ['to-string', ['get', '_lbl']], 'text-font': ['Roboto Bold'], 'text-size': 11, 'symbol-spacing': 400 }, paint: W_TXT }
   ];
   // Schalter im Panel: welche Quellen sie laden, welche Ebenen sie zeigen, was gezählt wird
   function isLT(a) { return function (f) { return a.indexOf(Number(f.properties.LTYP)) >= 0; }; }
@@ -641,10 +727,10 @@
     'w-begeg': { src: ['begeg'], lay: ['w-begeg', 'w-begeg-o'] },
     'w-wohnstr': { src: ['wohnstr'], lay: ['w-wohnstr', 'w-wohnstr-o'] },
     'w-fuzo': { src: ['fuzo'], lay: ['w-fuzo', 'w-fuzo-o'] },
-    'w-baust': { src: ['baup', 'baul'], lay: ['w-baup', 'w-baul'] },
+    'w-baust': { src: ['baup', 'baul'], lay: ['w-baup', 'w-baul', 'w-baup-lbl', 'w-baul-lbl'] },
     'w-ubplan': { src: ['ubplan', 'ubhalt'], lay: ['w-ubplan', 'w-ubhalt', 'w-ubhalt-lbl'] },
-    'w-bimplan': { src: ['bimplan', 'bimhalt'], lay: ['w-bimplan', 'w-bimhalt'] },
-    'w-strplan': { src: ['strpl', 'strplf'], lay: ['w-strpl', 'w-strpl-f', 'w-strpl-fo'] },
+    'w-bimplan': { src: ['bimplan', 'bimhalt'], lay: ['w-bimplan', 'w-bimhalt', 'w-bimplan-lbl'] },
+    'w-strplan': { src: ['strpl', 'strplf'], lay: ['w-strpl', 'w-strpl-f', 'w-strpl-fo', 'w-strpl-lbl'] },
     'w-transf': { src: ['transf'], lay: ['w-transf', 'w-transf-o'] },
     'w-verf': { src: ['verf'], lay: ['w-verf', 'w-verf-o'] },
     'w-bausp': { src: ['bausp'], lay: ['w-bausp', 'w-bausp-o'] },
@@ -954,13 +1040,14 @@
     })).then(function (parts) {
       var feats = [].concat.apply([], parts);
       if (s.mid) feats = feats.map(midPoint).filter(Boolean);
+      if (s.prep) feats.forEach(s.prep);
       return { type: 'FeatureCollection', features: feats };
     });
   }
   function wSet(key, fc) {
     var s = WS[key]; s.data = fc; s.state = 'ok';
     var src = map.getSource('w-' + key); if (src) src.setData(fc);
-    wPaint();
+    wPaint(); zpSoon(true);
   }
   function wNeeded(key) { return Object.keys(WT).some(function (id) { return $(id).checked && WT[id].src.indexOf(key) >= 0; }); }
   // Kleine Datensätze einmal ganz laden; große (view) nur für den Ausschnitt, mit etwas Rand
@@ -1017,25 +1104,115 @@
     $(id).addEventListener('change', function () { if (this.checked) resetStat(id); vis(id, this.checked); paintDots(); wPaint(); });
   });
   $('w-fwp-op').addEventListener('input', function () { if (map.getLayer('w-fwp')) map.setPaintProperty('w-fwp', 'raster-opacity', this.value / 100); });
-  map.on('moveend', function () { Object.keys(WS).forEach(function (k) { if (WS[k].view && wNeeded(k)) wEnsure(k); }); wPaint(); });
+  map.on('moveend', function () { Object.keys(WS).forEach(function (k) { if (WS[k].view && wNeeded(k)) wEnsure(k); }); wPaint(); zpSoon(); });
   map.on('load', wPaint);
   map.on('idle', wPaint);
-  $('panel').addEventListener('change', function () { wPaint(); });
+  $('panel').addEventListener('change', function () { wPaint(); zpSoon(true); });
+  $('zp').closest('details').addEventListener('toggle', function () { zpSoon(true); });
 
   // Angetippte Wien-Objekte für die Tabelle beim Punkt
+  // Ein Objekt liefert eine Zeile ['Titel', 'Text'] oder mehrere [[...], [...]]
+  function rowsOf(v) { if (!v) return []; return (typeof v[0] === 'string' ? [v] : v).filter(function (r) { return r && r[1]; }); }
   function wienRows(point) {
-    var r = isMobile() ? 14 : 8, lays = [];
+    var r = isMobile() ? 14 : 8, lays = [], out = { rows: [], qs: [] };
     Object.keys(WT).forEach(function (id) { if ($(id).checked) WT[id].lay.forEach(function (l) { if (!/-(lbl|o)$/.test(l) && map.getLayer(l)) lays.push(l); }); });
-    if (!lays.length) return [];
+    if (!lays.length) return out;
     var feats = map.queryRenderedFeatures([[point.x - r, point.y - r], [point.x + r, point.y + r]], { layers: lays });
     var rows = {}, order = [];
     feats.forEach(function (f) {
       var s = WS[String(f.source).replace(/^w-/, '')]; if (!s || !s.info) return;
-      var v = s.info(f.properties || {}); if (!v || !v[1]) return;
-      if (!rows[v[0]]) { rows[v[0]] = []; order.push(v[0]); }
-      if (rows[v[0]].indexOf(v[1]) < 0 && rows[v[0]].length < 6) rows[v[0]].push(v[1]);
+      var p = f.properties || {};
+      rowsOf(s.info(p)).forEach(function (v) {
+        if (!rows[v[0]]) { rows[v[0]] = []; order.push(v[0]); }
+        if (rows[v[0]].indexOf(v[1]) < 0 && rows[v[0]].length < 6) rows[v[0]].push(v[1]);
+      });
+      if (s.q) { var q = s.q(p); if (q && !out.qs.some(function (x) { return x.q === q.q; })) out.qs.push(q); }
     });
-    return order.map(function (k) { return [k, rows[k].join(' · ')]; });
+    out.rows = order.map(function (k) { return [k, rows[k].join(' · ')]; });
+    return out;
+  }
+
+  // ---------- Zeitplan im Kartenausschnitt: was wann gebaut wird ----------
+  var ZP_SRC = ['baup', 'baul', 'ubhalt', 'bimplan', 'strpl', 'strplf', 'verf', 'bausp'];
+  var ZP_HEAD = ['Baustellen jetzt, nach Ende sortiert', 'Baustellen, die bald beginnen', 'Geplante Projekte, nach Jahr', 'Widmung im Verfahren'];
+  var ZP_COL = ['#dc2626', '#f59e0b', '#2563eb', '#7c3aed'];
+  function gBox(g) {
+    var b = [180, 90, -180, -90];
+    (function walk(c) { if (typeof c[0] === 'number') { b[0] = Math.min(b[0], c[0]); b[1] = Math.min(b[1], c[1]); b[2] = Math.max(b[2], c[0]); b[3] = Math.max(b[3], c[1]); } else c.forEach(walk); })(g.coordinates);
+    return b;
+  }
+  function gPoint(g) {
+    if (g.type === 'Point') return g.coordinates;
+    if (g.type === 'LineString') return g.coordinates[Math.floor(g.coordinates.length / 2)];
+    if (g.type === 'MultiLineString') { var l = g.coordinates[0]; return l[Math.floor(l.length / 2)]; }
+    var b = gBox(g), c = [(b[0] + b[2]) / 2, (b[1] + b[3]) / 2];
+    return inPoly(c, g) ? c : (g.type === 'Polygon' ? g.coordinates[0][0] : g.coordinates[0][0][0]);
+  }
+  // Solange ein Eintrag offen ist, bleibt die Liste stehen, auch wenn die Karte zu ihm fährt
+  var zpTimer = null, zpPin = false;
+  function zpSoon(force) { if (zpPin && !force) return; if (force) zpPin = false; clearTimeout(zpTimer); zpTimer = setTimeout(zpRender, 200); }
+  function zpRender() {
+    var wrap = $('zp'), on = ZP_SRC.filter(function (k) { return wNeeded(k); });
+    wrap.hidden = !on.length;
+    if (!on.length || !wrap.closest('details').open) return;
+    var vb = map.getBounds(), v = [vb.getWest(), vb.getSouth(), vb.getEast(), vb.getNorth()], items = [], seen = {};
+    on.forEach(function (k) {
+      var s = WS[k]; if (!s.data || !s.zp) return;
+      s.data.features.forEach(function (f) {
+        if (!f.geometry) return;
+        var bb = gBox(f.geometry);
+        if (bb[0] > v[2] || bb[2] < v[0] || bb[1] > v[3] || bb[3] < v[1]) return;
+        var it = s.zp(f.properties || {}); if (!it) return;
+        var id = it.g + '|' + it.title + '|' + it.when, o = seen[id];
+        if (o) { if (it.what && o.whats.indexOf(it.what) < 0) o.whats.push(it.what); o.feats.push(f); o.bb = [Math.min(o.bb[0], bb[0]), Math.min(o.bb[1], bb[1]), Math.max(o.bb[2], bb[2]), Math.max(o.bb[3], bb[3])]; return; }
+        it.whats = it.what ? [it.what] : []; it.feats = [f]; it.bb = bb; it.src = k;
+        seen[id] = it; items.push(it);
+      });
+    });
+    items.sort(function (a, b) { return a.g - b.g || (a.key < b.key ? -1 : a.key > b.key ? 1 : 0) || (a.title < b.title ? -1 : 1); });
+    var list = $('zp-list'); list.textContent = '';
+    $('zp-n').textContent = items.length ? '(' + items.length + ')' : '';
+    if (!items.length) { var e = document.createElement('p'); e.className = 'hint'; e.style.margin = '0'; e.textContent = 'Im Ausschnitt ist nichts davon. Herauszoomen oder die Karte verschieben.'; list.appendChild(e); return; }
+    var lastG = -1, shown = 0;
+    items.forEach(function (it) {
+      if (shown >= 60) return;
+      if (it.g !== lastG) { var h = document.createElement('h4'); h.textContent = ZP_HEAD[it.g]; list.appendChild(h); lastG = it.g; }
+      var box = document.createElement('div'); box.className = 'zpi';
+      var b = document.createElement('button'); b.type = 'button';
+      var st = document.createElement('i'); st.className = 'st'; st.style.background = ZP_COL[it.g];
+      var t = document.createElement('b'); t.textContent = it.title;
+      var w = document.createElement('span'); w.textContent = [it.when, it.whats.join(', ')].filter(Boolean).join(' · ');
+      b.appendChild(st); b.appendChild(t); b.appendChild(w);
+      var det = document.createElement('div'); det.className = 'zpd'; det.hidden = true;
+      b.addEventListener('click', function () { zpOpen(it, box, det); });
+      box.appendChild(b); box.appendChild(det); list.appendChild(box); shown++;
+    });
+    if (items.length > shown) { var more = document.createElement('p'); more.className = 'hint'; more.textContent = 'Und ' + (items.length - shown) + ' weitere: näher hineinzoomen.'; list.appendChild(more); }
+  }
+  // Eintrag antippen: Details klappen auf, die Karte fährt hin, das Objekt wird hervorgehoben; das Menü bleibt stehen
+  function zpOpen(it, box, det) {
+    var opening = det.hidden;
+    Array.prototype.forEach.call(document.querySelectorAll('.zpi.open'), function (x) { x.classList.remove('open'); x.querySelector('.zpd').hidden = true; });
+    zpPin = opening;
+    if (!opening) { zpSoon(true); return; }
+    box.classList.add('open'); det.hidden = false; det.textContent = '';
+    var s = WS[it.src], tbl = document.createElement('table'); tbl.className = 'kv';
+    rowsOf(s.info(it.feats[0].properties || {})).forEach(function (r) { addRow(tbl, r[0], r[1]); });
+    if (it.whats.length > 1) addRow(tbl, 'Umfasst', it.whats.join(', '));
+    det.appendChild(tbl);
+    if (s.q) {
+      var q = s.q(it.feats[0].properties || {}), links = document.createElement('div'); links.className = 'links';
+      addLink(links, 'Zeitplan im Netz suchen', 'https://www.google.com/search?q=' + encodeURIComponent(q.q), true);
+      det.appendChild(links);
+    }
+    map.getSource('sel').setData({ type: 'FeatureCollection', features: it.feats.map(function (f) { return { type: 'Feature', geometry: f.geometry, properties: {} }; }) });
+    var ll = gPoint(it.feats[0].geometry), bb = it.bb, mob = isMobile();
+    marker.setLngLat(ll).addTo(map);
+    if (bb[2] - bb[0] > 0.0008 || bb[3] - bb[1] > 0.0008) {
+      map.fitBounds([[bb[0], bb[1]], [bb[2], bb[3]]], { padding: mob ? { top: 40, bottom: Math.round(window.innerHeight * 0.66), left: 30, right: 30 } : 60, maxZoom: 17, duration: 900 });
+    } else {
+      map.flyTo({ center: ll, zoom: Math.max(map.getZoom(), 16), offset: mob ? [0, -Math.round(window.innerHeight * 0.31)] : [0, 0], duration: 900 });
+    }
   }
   // Haltestellen im Umkreis von 500 m, nächste zuerst, gleiche Namen zusammengefasst
   function nearStops(lng, lat) {
@@ -1356,7 +1533,8 @@
       }
       if (nat) addRow(tbl, 'Natura 2000', nat.properties.gebietsart === 'FFH' ? 'ja, FFH-Gebiet' : 'ja, Vogelschutzgebiet');
     }
-    wienRows(e.point).forEach(function (r) { addRow(tbl, r[0], r[1]); });
+    var wr = wienRows(e.point);
+    wr.rows.forEach(function (r) { addRow(tbl, r[0], r[1]); });
     // Nachgeladene Angaben: INVEKOS, Hochwasser, Widmung, Haltestellen, Wald
     var pt = [cur.lng, cur.lat];
     var ivNow = $('iv-select').value, ivNowLbl = $('iv-select').selectedOptions[0] ? $('iv-select').selectedOptions[0].textContent : '', ivPrev = prevIvLayer();
@@ -1384,6 +1562,7 @@
     addLink(box, 'Wayback-App', 'https://livingatlas.arcgis.com/wayback/#mapCenter=' + lng + '%2C' + lat + '%2C17', true);
     addLink(box, 'Widmung: NÖ Atlas', 'https://atlas.noe.gv.at/', true);
     addLink(box, 'Versteigerungen: Ediktsdatei', 'https://edikte.justiz.gv.at/', true);
+    wr.qs.slice(0, 2).forEach(function (q) { addLink(box, 'Zeitplan: ' + q.t, 'https://www.google.com/search?q=' + encodeURIComponent(q.q), true); });
     $('pt-empty').hidden = true; $('pt-body').hidden = false;
     if (isMobile()) {
       setPanel(true); $('point').scrollIntoView({ block: 'start' });
