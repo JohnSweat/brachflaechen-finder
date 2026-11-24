@@ -129,7 +129,7 @@
 <div id="app">
   <aside id="panel">
     <h1>Brachflächen-Finder</h1>
-    <p class="sub">Verwilderte Grundstücke in Österreich am Bildschirm aufspüren: Luftbild, Kataster, Agrarförderung und Street View in einer Karte; in Wien auch Öffis, Widmung, Planungen und Energieanlagen. <span class="ver">Stand 22.11.2026 (2)</span></p>
+    <p class="sub">Verwilderte Grundstücke in Österreich am Bildschirm aufspüren: Luftbild, Kataster, Agrarförderung und Street View in einer Karte; in Wien auch Öffis, Widmung, Planungen und Energieanlagen. <span class="ver">Stand 24.11.2026</span></p>
     <div class="warn" id="offline" hidden><b>Das ist eine gespeicherte Kopie der Seite.</b> Als Datei geöffnet fehlen Grundstücksdaten und Kopieren, und neue Funktionen kommen nicht an. Bitte die Seite über den Link öffnen und dort zum Startbildschirm hinzufügen.<br><a class="btn" href="https://johnsweat.github.io/brachflaechen-finder/">Aktuelle Seite öffnen</a></div>
 
     <details class="card grp" id="help" open>
@@ -448,7 +448,8 @@
   var NS_NAME = { 40: 'Landwirtschaftlich genutzte Grundfläche', 41: 'Gebäude', 42: 'Parkplatz', 48: 'Acker, Wiese oder Weide', 52: 'Garten', 53: 'Weingarten', 54: 'Alpe', 55: 'Krummholzfläche', 56: 'Wald', 57: 'Verbuschte Fläche', 58: 'Forststraße', 59: 'Fließendes Gewässer', 60: 'Stehendes Gewässer', 61: 'Feuchtgebiet', 62: 'Vegetationsarme Fläche', 63: 'Betriebsfläche', 64: 'Gewässerrandfläche', 65: 'Verkehrsrandfläche', 72: 'Friedhof', 83: 'Gebäudenebenfläche', 84: 'Abbaufläche, Halde oder Deponie', 87: 'Fels- und Geröllfläche', 88: 'Gletscher', 92: 'Schienenverkehrsanlage', 95: 'Straßenverkehrsanlage', 96: 'Freizeitfläche' };
 
   // ---------- gespeicherte Ansicht ----------
-  var view = { center: [16.3205, 48.3052], zoom: 15 };
+  // Startansicht für neue Besucher: Wien und Umgebung, bewusst ohne bestimmten Ort
+  var view = { center: [16.3725, 48.2085], zoom: 10 };
   try {
     var saved = JSON.parse(localStorage.getItem('brach-view') || 'null');
     if (saved && Array.isArray(saved.center) && typeof saved.zoom === 'number') view = saved;
