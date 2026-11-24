@@ -1719,16 +1719,20 @@
       b.sort(function (x, y) { return v(y, 'start') < v(x, 'start') ? -1 : 1; });
       var r = b[0];
       return { name: v(r, 'gLabel'), web: v(r, 'web'), email: v(r, 'email').replace(/^mailto:/, ''), phone: v(r, 'phone'),
-        mayor: v(r, 'mayorLabel'), since: v(r, 'start').slice(0, 4), bez: v(r, 'bezLabel'), bezweb: v(r, 'bezweb'), qid: v(r, 'g').split('/').pop() };
+        mayor: /^Q\d+$/.test(v(r, 'mayorLabel')) ? '' : v(r, 'mayorLabel'), since: v(r, 'start').slice(0, 4), bez: v(r, 'bezLabel'), bezweb: v(r, 'bezweb'), qid: v(r, 'g').split('/').pop() };
     });
   }
   function townhall(name, lng, lat) {
     var vb = [lng - 0.2, lat + 0.13, lng + 0.2, lat - 0.13].map(function (x) { return x.toFixed(3); }).join(',');
     return nomFetch('https://nominatim.openstreetmap.org/search?format=jsonv2&extratags=1&addressdetails=1&limit=8&countrycodes=at&accept-language=de&bounded=1&viewbox=' + vb +
       '&q=' + encodeURIComponent('Rathaus in ' + name), 15000).then(json).then(function (list) {
+      var norm = function (v) { return String(v || '').toLowerCase().replace(/[^a-zäöüß]/g, ''); }, want = norm(name);
       var score = function (x) {
-        var t = x.extratags || {}, nm = x.name || x.display_name || '';
+        var t = x.extratags || {}, nm = x.name || x.display_name || '', a = x.address || {};
         if (x.category !== 'amenity' || x.type !== 'townhall' || /Bezirkshauptmannschaft|Festsaal|Gemeindehaus|Feuerwehr/i.test(nm)) return -1;
+        // Das Amt muss in der gesuchten Gemeinde liegen, sonst gewinnt leicht das Amt der Nachbargemeinde
+        var inGem = [a.municipality, a.town, a.city, a.village].some(function (v) { return v && norm(v) === want; }) || norm(nm).indexOf(want) >= 0;
+        if (!inGem) return -1;
         return (t['townhall:type'] === 'municipality' ? 4 : 0) + (/amt|Rathaus/i.test(nm) ? 2 : 0) + ['phone', 'contact:phone', 'email', 'contact:email', 'website', 'contact:website', 'opening_hours'].filter(function (k) { return t[k]; }).length;
       };
       var best = null; (list || []).forEach(function (x) { if (score(x) >= 0 && (!best || score(x) > score(best))) best = x; });
@@ -1866,11 +1870,17 @@
         if (!t) return { t: 'nicht in OpenStreetMap gefunden', a: [['Websuche', 'https://www.google.com/search?q=' + encodeURIComponent('Gemeindeamt ' + (cur.gemeinde || '') + ' Öffnungszeiten')]] };
         return { t: [t.name, t.adr, t.hours ? 'geöffnet ' + t.hours : ''].filter(Boolean).join(' · '), a: [t.phone ? [t.phone, telHref(t.phone)] : null, t.email ? [t.email, 'mailto:' + t.email] : null, t.web && webHref(t.web) ? ['Webseite', webHref(t.web)] : null] };
       });
-      late(bz && bz.wien ? 'Bürgermeister/in (Wien)' : 'Bürgermeister/in', Promise.all([gi.wd, Promise.resolve(gi.th).catch(function () { return null; })]), function (r) {
+      if (bz && bz.wien) late('Bezirk', gi.wd, function (w) {
+        if (!w) return 'nicht in Wikidata';
+        return { t: [w.name, w.mayor ? 'Bezirksvorstehung: ' + w.mayor + (w.since ? ' (seit ' + w.since + ')' : '') + ', laut Wikidata' : ''].filter(Boolean).join(' · '),
+          a: [w.web && webHref(w.web) ? ['Webseite des Bezirks', webHref(w.web)] : null, ['Magistratisches Bezirksamt', 'https://www.google.com/search?q=' + encodeURIComponent('Magistratisches Bezirksamt ' + w.name + ' Wien')]] };
+      });
+      else late('Bürgermeister/in', Promise.all([gi.wd, Promise.resolve(gi.th).catch(function () { return null; })]), function (r) {
         var w = r[0], th = r[1];
         if (!w) return 'nicht in Wikidata';
         var a = [];
-        if (!(bz && bz.wien)) { if (w.email && !(th && th.email)) a.push([w.email, 'mailto:' + w.email]); if (w.web && webHref(w.web) && !(th && th.web)) a.push(['Gemeinde-Webseite', webHref(w.web)]); }
+        if (w.email && !(th && th.email)) a.push([w.email, 'mailto:' + w.email]);
+        if (w.web && webHref(w.web) && !(th && th.web)) a.push(['Gemeinde-Webseite', webHref(w.web)]);
         return { t: w.mayor ? w.mayor + (w.since ? ' (seit ' + w.since + ')' : '') + ', laut Wikidata, bitte auf der Gemeinde-Webseite prüfen' : 'nicht in Wikidata eingetragen', a: a };
       });
       if (bz && !bz.wien) {
