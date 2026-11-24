@@ -1653,7 +1653,8 @@
       return fs.map(function (f) {
         var p = f.properties || {}, kz = String(p.ext_Wert_Kz || ''), fn = tx(p.existinglanduseobject_specificlanduse_title) || tx(p.description).replace(/^\d+:\s*/, '').replace(/\s*\d{3}\s*\|.*$/, '');
         var st = kz.length === 3 ? 'Schutz ' + WEP_STUFE[kz[0]] + ', Wohlfahrt ' + WEP_STUFE[kz[1]] + ', Erholung ' + WEP_STUFE[kz[2]] : '';
-        return { t: (fn ? 'Leitfunktion ' + fn.replace(/funktion$/i, '') : 'Funktionsfläche') + (kz ? ' (Wertziffer ' + kz + (st ? ': ' + st : '') + ')' : '') + (p.ext_BFI ? ', ' + tx(p.ext_BFI) + (p.ext_Gen_Jahr ? ' ' + p.ext_Gen_Jahr : '') : ''), href: safeUrl(p.descriptionreference_href) };
+        var lf = { schutzfunktion: 'Schutz', wohlfahrtsfunktion: 'Wohlfahrt', erholungsfunktion: 'Erholung', nutzfunktion: 'Nutzung' }[fn.toLowerCase()] || fn;
+        return { t: (lf ? 'Leitfunktion ' + lf : 'Funktionsfläche') + (kz ? ' (Wertziffer ' + kz + (st ? ': ' + st : '') + ')' : '') + (p.ext_BFI ? ', ' + tx(p.ext_BFI) + (p.ext_Gen_Jahr ? ' ' + p.ext_Gen_Jahr : '') : ''), href: safeUrl(p.descriptionreference_href) };
       });
     });
   }
