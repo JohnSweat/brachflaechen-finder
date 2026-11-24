@@ -156,6 +156,7 @@
             <p><b>Grundstücke.</b> Grenzen, Nummern und Nutzung aus dem Kataster des Vermessungsamts (BEV), tagesaktuell. Die Einstufung als Garten oder verbuscht ist oft Jahre alt; ein Garten, der am Luftbild zugewachsen ist, ist ein guter Hinweis.</p>
             <p><b>Luftbilder früher.</b> Esri Wayback zeigt frühere Stände der Esri-Luftbilder ab 2014 für ganz Österreich; das Flugdatum in Kartenmitte steht unter dem Regler. Für Wien gibt es zusätzlich die Luftbilder der Stadt, jedes Jahr ab 2014 und historische von 1938 bis 1992.</p>
             <p><b>Landwirtschaft.</b> INVEKOS zeigt Felder, die ein Betrieb bei der Agrarmarkt Austria für Förderungen gemeldet hat; Gärten, Wald und Bauland sind nie gemeldet. Der Agraratlas ergänzt Kultur, Bio-Flächen, gemeldete Brachen, Natura-2000-Schutzgebiete, Feuchtgebiete und Hangneigung. Eine gemeldete Brache ist bewusst stillgelegt und hat einen Bewirtschafter.</p>
+            <p><b>Boden, Klima, Grundwasser.</b> Die Bodenkarte eBOD des Bundesforschungszentrums für Wald (BFW) zeigt für Äcker und Wiesen Bodenart, Wasserversorgung, Gründigkeit und die Eignung als Acker oder Grünland; „hochwertig“ heißt guter, tiefer Boden mit ausreichend Wasser. Sonne, Frost und Regen beim angeklickten Punkt sind Mittelwerte der letzten zehn Jahre aus Wetter-Reanalysen (Open-Meteo, Raster etwa 10 km), also für die Gegend und nicht für einen Hang oder Schatten. Grundwasser: Messstellen des Hydrographischen Dienstes (eHYD) mit Grundwasserkörper; die Messreihen stehen auf ehyd.gv.at.</p>
             <p><b>Hochwasser HQ100.</b> Flächen, die bei einem Hochwasser überflutet werden, wie es statistisch einmal in 100 Jahren vorkommt. In Niederösterreich darf dort kein Bauland und kein Kleingarten neu gewidmet werden; die Widmung selbst zeigt dort der NÖ Atlas (Link beim angeklickten Punkt).</p>
             <p><b>Lärm.</b> Lärmkarten des Bundes, Stand 2022, für Straße, Bahn, Flughäfen und große Industrieanlagen: Mittelwert über 24 Stunden, kartiert ab 55 dB. Ruhige Gebiete stammen aus den Aktionsplänen 2024.</p>
             <p><b>Internet.</b> Höchste verfügbare Bandbreite im Festnetz und im Mobilfunk laut Breitbandatlas.</p>
@@ -309,6 +310,29 @@
           <div class="row"><input type="checkbox" id="a-hang"><label for="a-hang">Hangneigung</label></div>
         </div>
         <p class="hint" id="agrar-hint">Felder ab Zoom 12.</p>
+      </div>
+    </details>
+
+    <details class="card grp" id="boden-card">
+      <summary>Boden, Klima, Grundwasser <span class="gcount"></span></summary>
+      <div class="gbody">
+        <div class="row"><input type="checkbox" id="l-boden"><label for="l-boden">Bodenkarte eBOD (Äcker und Wiesen)</label><span class="dot" data-dot="boden"></span></div>
+        <div class="ctl">
+          <label>Zeigt
+            <select id="boden-attr">
+              <option value="gruenlandwert">Eignung als Grünland, Garten, Obst</option>
+              <option value="ackerwert">Eignung als Acker, Gemüse</option>
+              <option value="wasserverhaeltnisse">Wasserversorgung</option>
+              <option value="nutzbare_feldkapazitaet">Wasserspeicher</option>
+              <option value="gruendigkeit">Gründigkeit (für Wurzeln)</option>
+              <option value="bodenart">Bodenart</option>
+            </select>
+          </label>
+          <label>Deckkraft <input type="range" id="boden-op" min="0" max="100" value="55"></label>
+        </div>
+        <div class="swl" id="boden-lg" style="margin:6px 0 4px"></div>
+        <div class="row"><input type="checkbox" id="w-gw"><span class="sw pt" style="background:#2563eb"></span><label for="w-gw">Grundwasser-Messstellen (eHYD)</label><span class="dot" data-dot="w-gw"></span></div>
+        <p class="hint">Beim angeklickten Punkt stehen Boden, Wasserhaushalt, Sonne, Frost und Regen sowie die nächste Grundwasser-Messstelle. Die Bodenkarte deckt nur Äcker und Wiesen ab; Wald, Gärten im Ort und Bauland sind nicht kartiert.</p>
       </div>
     </details>
 
@@ -499,6 +523,27 @@
   function bezOf(gkz) { var c = Math.floor(Number(gkz) / 100); return NOE_BEZ[c] ? { code: c, name: NOE_BEZ[c][0], wh: 'niederoesterreich/' + NOE_BEZ[c][1], gv: NOE_BEZ[c][2] } : c >= 900 && c < 1000 ? { code: c, name: 'Wien', wh: 'wien', wien: true } : null; }
   var NS_NAME = { 40: 'Landwirtschaftlich genutzte Grundfläche', 41: 'Gebäude', 42: 'Parkplatz', 48: 'Acker, Wiese oder Weide', 52: 'Garten', 53: 'Weingarten', 54: 'Alpe', 55: 'Krummholzfläche', 56: 'Wald', 57: 'Verbuschte Fläche', 58: 'Forststraße', 59: 'Fließendes Gewässer', 60: 'Stehendes Gewässer', 61: 'Feuchtgebiet', 62: 'Vegetationsarme Fläche', 63: 'Betriebsfläche', 64: 'Gewässerrandfläche', 65: 'Verkehrsrandfläche', 72: 'Friedhof', 83: 'Gebäudenebenfläche', 84: 'Abbaufläche, Halde oder Deponie', 87: 'Fels- und Geröllfläche', 88: 'Gletscher', 92: 'Schienenverkehrsanlage', 95: 'Straßenverkehrsanlage', 96: 'Freizeitfläche' };
 
+  // ---------- Bodenkarte eBOD (BFW): Klassen und Farben wie auf bodenkarte.at ----------
+  var BODEN_TILES = 'https://bodenkarte.at/data/bodenkarte-tiles/{z}/{x}/{y}.pbf';
+  var WERT5 = [['1', 'geringwertig', '#ed2c08'], ['2', 'gering bis mittelwertig', '#ff6e00'], ['3', 'mittelwertig', '#ffff00'], ['4', 'mittel bis hochwertig', '#00ff2f'], ['5', 'hochwertig', '#006e00']];
+  var BODEN = {
+    ackerwert: WERT5, gruenlandwert: WERT5,
+    wasserverhaeltnisse: [['1', 'sehr trocken', '#ff0000'], ['2', 'sehr trocken bis trocken', '#fe2a00'], ['3', 'trocken', '#fe6834'], ['4', 'trocken bis mäßig trocken', '#fe9e57'], ['5', 'mäßig trocken', '#fec78c'], ['6', 'mäßig trocken bis gut versorgt', '#fef896'], ['7', 'gut versorgt', '#d1fc84'], ['8', 'gut versorgt bis mäßig feucht', '#afdab0'], ['9', 'mäßig feucht', '#73c2bd'], ['10', 'mäßig feucht bis feucht', '#57cde4'], ['11', 'feucht', '#389ed5'], ['12', 'feucht bis nass', '#64539d'], ['13', 'nass', '#6124a4'], ['14', 'wechselfeucht', '#afdab0'], ['15', 'wechselfeucht, eher trocken', '#d1fc84'], ['16', 'wechselfeucht, eher feucht', '#73c2bd'], ['0', 'uneinheitlich', '#cccccc']],
+    nutzbare_feldkapazitaet: [['1', 'sehr gering (unter 60 mm)', '#ff0000'], ['2', 'gering (60–140 mm)', '#ff7f7f'], ['3', 'mittel (140–220 mm)', '#e6e600'], ['4', 'hoch (220–300 mm)', '#00c5ff'], ['5', 'sehr hoch (über 300 mm)', '#005ce6']],
+    gruendigkeit: [['1', 'seichtgründig', '#e60000'], ['2', 'seicht- bis mittelgründig', '#ffa77f'], ['3', 'mittelgründig', '#ffff00'], ['4', 'mittel- bis tiefgründig', '#4ce600'], ['5', 'tiefgründig', '#004da8'], ['0', 'stark schwankend', '#ff73df']],
+    bodenart: [['S', 'Sand', '#f6d296'], ['zS', 'schluffiger Sand', '#f7e0ba'], ['lS', 'lehmiger Sand', '#f3f4a7'], ['sZ', 'sandiger Schluff', '#f5f660'], ['Z', 'Schluff', '#f6f812'], ['tS', 'toniger Sand', '#d4f6c7'], ['sL', 'sandiger Lehm', '#bcffa2'], ['lZ', 'lehmiger Schluff', '#7af84d'], ['sT', 'sandiger Ton', '#8ed8f8'], ['L', 'Lehm', '#46c1f7'], ['zL', 'schluffiger Lehm', '#71a9c2'], ['lT', 'lehmiger Ton', '#a7a1f8'], ['T', 'Ton', '#7f77f7']]
+  };
+  var BODENTYP = { A: 'Auboden', B: 'Braunerde', BA: 'Brauner Auboden', BS: 'Brauner Tschernosem', BT: 'Braunlehm', EG: 'Extremer Gley', EP: 'Extremer Pseudogley', ER: 'Eurendsina', ET: 'Roterde', FB: 'Felsbraunerde', FS: 'Feuchtschwarzerde', FU: 'Farb-Ortsboden', G: 'Gley', GA: 'Grauer Auboden', GC: 'Gesteinsrohboden', GS: 'Gebirgsschwarzerde', GT: 'Reliktpseudogley', GU: 'Gartenboden', HG: 'Hanggley', HM: 'Hochmoor', HP: 'Hangpseudogley', HU: 'Haldenboden', IU: 'Rigolboden', K: 'Bodenformkomplex', KU: 'Kulturrohboden', KZ: 'Solontschak', LB: 'Lockersediment-Braunerde', LC: 'Lockersediment-Rohboden', LU: 'Kolluvium', M: 'Moor', N: 'Anmoor', NM: 'Niedermoor', OU: 'Ortsboden', P: 'Pseudogley', PB: 'Parabraunerde', PR: 'Pararendsina', PS: 'Paratschernosem', PU: 'Planieboden', RA: 'Rohauboden', RR: 'Ranker', RT: 'Rotlehm', RU: 'Restboden', SA: 'Schwemmboden', SO: 'Semipodsol', SP: 'Stagnogley', SU: 'Struktur-Ortsboden', SZ: 'Solontschak-Solonetz', T: 'Reliktboden', TG: 'Typischer Gley', TP: 'Typischer Pseudogley', TS: 'Tschernosem', TU: 'Textur-Ortsboden', U: 'Untypischer Boden', UM: 'Übergangsmoor', ZZ: 'Solonetz', X: 'nicht bestimmbar', R: 'Rendsina' };
+  var BODEN_PH = { 0: 'uneinheitlich', 1: 'stark alkalisch', 2: 'alkalisch', 3: 'schwach alkalisch', 4: 'neutral', 5: 'schwach sauer', 6: 'sauer', 7: 'stark sauer', 12: 'alkalisch bis stark alkalisch', 23: 'schwach alkalisch bis alkalisch', 24: 'neutral bis alkalisch', 25: 'schwach sauer bis alkalisch', 26: 'sauer bis alkalisch', 27: 'stark sauer bis alkalisch', 34: 'neutral bis schwach alkalisch', 35: 'schwach sauer bis schwach alkalisch', 45: 'schwach sauer bis neutral', 46: 'sauer bis neutral', 47: 'stark sauer bis neutral', 56: 'schwach sauer bis sauer', 57: 'stark bis schwach sauer', 67: 'sauer bis stark sauer' };
+  var BODEN_KALK = { 0: 'entkalkt', 1: 'kalkfrei', 2: 'kalkfrei bis kalkarm', 3: 'kalkarm', 4: 'kalkarm bis schwach kalkhaltig', 5: 'schwach kalkhaltig', 6: 'schwach bis mäßig kalkhaltig', 7: 'mäßig kalkhaltig', 8: 'mäßig bis stark kalkhaltig', 9: 'stark kalkhaltig', 15: 'kalkfrei bis schwach kalkhaltig', 17: 'kalkfrei bis mäßig kalkhaltig', 19: 'kalkfrei bis stark kalkhaltig', 37: 'kalkarm bis mäßig kalkhaltig', 39: 'kalkarm bis stark kalkhaltig', 59: 'schwach bis stark kalkhaltig' };
+  var BODEN_SONST = { 200: 'Gewässer', 300: 'Wald', 400: 'verbautes Gebiet', 800: 'teils Wald', 900: 'nicht kartiert' };
+  function bodenLbl(attr, v) { var a = BODEN[attr] || []; for (var i = 0; i < a.length; i++) if (a[i][0] === String(v)) return a[i][1]; return ''; }
+  function bodenColor(attr) {
+    var e = ['match', ['to-string', ['get', attr]]];
+    BODEN[attr].forEach(function (c) { e.push(c[0], c[2]); });
+    e.push('rgba(0,0,0,0)'); return e;
+  }
+
   // ---------- gespeicherte Ansicht ----------
   // Startansicht für neue Besucher: Wien und Umgebung, bewusst ohne bestimmten Ort
   var view = { center: [16.3725, 48.2085], zoom: 10 };
@@ -576,6 +621,7 @@
     ['lb2014', 'farbe', '2014', 19], ['lb2015', 'farbe', '2015', 19], ['lb2016', 'farbe', '2016', 19], ['lb2017', 'farbe', '2017', 19], ['lb2018', 'farbe', '2018', 19], ['lb2019', 'farbe', '2019', 19],
     ['lb2020', 'farbe', '2020', 20], ['lb2021', 'farbe', '2021', 20], ['lb2022', 'farbe', '2022', 21], ['lb2023', 'farbe', '2023', 21], ['lb2024', 'farbe', '2024', 21], ['lb', 'farbe', '2025', 21]];
   var WIEN_LB_BY = {}; WIEN_LB.forEach(function (w) { WIEN_LB_BY[w[0]] = w; });
+  var GW_WMS = 'https://inspire.lfrz.gv.at/000501/wms', GW_LAYER = 'ehyd_2020_gw';
   // Rasterschichten: Schalter, Quelle und Ebene tragen dieselbe Kennung
   var W_RASTER = {
     'w-fwp': { tiles: WMTS_W('flwbplmzk', 'rot', 'jpeg'), bounds: WIEN_BOUNDS, max: 19, op: 0.6, attr: 'Flächenwidmung © Stadt Wien' },
@@ -586,7 +632,8 @@
     'w-ruhig': { tiles: LAERM('2024_Ruhige_Gebiete'), size: 512, max: 22, op: 0.6, attr: 'Lärmkarten: inspire.gv.at' },
     'w-bbfix': { tiles: BBA('Festnetz', 'resources:bbafix'), max: 17, op: 0.6, attr: 'breitbandatlas.gv.at' },
     'w-bbmob': { tiles: BBA('Mobilfunknetz', 'resources:mobile'), max: 17, op: 0.6, attr: 'breitbandatlas.gv.at' },
-    'w-fwpcode': { tiles: WMTS_W('flwbplgen', 'grau', 'png'), bounds: WIEN_BOUNDS, max: 19, op: 1, minzoom: 15, top: true }
+    'w-fwpcode': { tiles: WMTS_W('flwbplgen', 'grau', 'png'), bounds: WIEN_BOUNDS, max: 19, op: 1, minzoom: 15, top: true },
+    'w-gw': { tiles: [GW_WMS + '?service=WMS&version=1.3.0&request=GetMap&layers=' + GW_LAYER + '&styles=&format=image%2Fpng&transparent=true&crs=EPSG%3A3857&width=512&height=512&bbox={bbox-epsg-3857}'], size: 512, max: 22, op: 1, top: true, attr: 'Grundwasser: eHYD, BML' }
   };
   var RANG_TXT = { B: 'Basisroute', G: 'Grundnetz', E: 'erweitertes Grundnetz' };
   // Datum und Status für Baustellen und Planungen
@@ -806,7 +853,8 @@
     sel: { type: 'geojson', data: { type: 'FeatureCollection', features: [] } },
     cand: { type: 'geojson', data: { type: 'FeatureCollection', features: [] } },
     merk: { type: 'geojson', data: { type: 'FeatureCollection', features: [] } },
-    ins: { type: 'geojson', data: { type: 'FeatureCollection', features: [] } }
+    ins: { type: 'geojson', data: { type: 'FeatureCollection', features: [] } },
+    boden: { type: 'vector', tiles: [BODEN_TILES], minzoom: 6, maxzoom: 15, bounds: [9.53, 46.37, 17.17, 49.03], attribution: 'Bodenkarte eBOD © <a href="https://bodenkarte.at">BFW</a>' }
   };
   if (HAS_AG) SOURCES.agrar = { type: 'vector', url: 'pmtiles://https://agraratlas.inspire.gv.at/map/tiles/agraratlas.pmtiles', attribution: 'Agraratlas © BMLUK, AMA' };
   Object.keys(WS).forEach(function (k) {
@@ -839,6 +887,10 @@
     put('merk-pt', of('pt'));
   })();
 
+  layers.splice(layers.map(function (l) { return l.id; }).indexOf('nfl-' + Object.keys(NUTZ)[0]), 0,
+    { id: 'boden', type: 'fill', source: 'boden', 'source-layer': 'bodenform_mpoly', layout: { visibility: 'none' }, paint: { 'fill-color': bodenColor('gruenlandwert'), 'fill-opacity': 0.55 } },
+    { id: 'boden-o', type: 'line', source: 'boden', 'source-layer': 'bodenform_mpoly', minzoom: 13, layout: { visibility: 'none' }, paint: { 'line-color': '#5b4a2f', 'line-width': 0.6, 'line-opacity': 0.6 } });
+
   var map = new maplibregl.Map({
     container: 'map',
     center: view.center, zoom: view.zoom, minZoom: 6, maxZoom: 20,
@@ -865,7 +917,7 @@
 
   // ---------- Status-Punkte ----------
   var stat = {}; // sourceId -> {ok, err}
-  var DOT_SOURCES = { base: ['ortho', 'grau'], wayback: ['wayback'], kataster: ['kataster'], invekos: ['invekos'], hq: ['hq'], agrar: ['agrar'] };
+  var DOT_SOURCES = { base: ['ortho', 'grau'], wayback: ['wayback'], kataster: ['kataster'], invekos: ['invekos'], hq: ['hq'], agrar: ['agrar'], boden: ['boden'] };
   Object.keys(W_RASTER).forEach(function (id) { DOT_SOURCES[id] = [id]; });
   function isOn(key) {
     if (key.indexOf('w-') === 0) return !!$(key) && $(key).checked;
@@ -874,6 +926,7 @@
     if (key === 'invekos') return $('l-invekos').checked;
     if (key === 'hq') return $('l-hq').checked;
     if (key === 'agrar') return HAS_AG;
+    if (key === 'boden') return $('l-boden').checked;
     if (key === 'kataster') return true;
     return false;
   }
@@ -920,6 +973,16 @@
   Object.keys(NUTZ).forEach(function (ns) {
     $('n-' + ns).addEventListener('change', function () { vis('nfl-' + ns, this.checked); });
   });
+
+  // ---------- Bodenkarte: Schalter, Thema, Legende ----------
+  function bodenLegend() {
+    var box = $('boden-lg'), attr = $('boden-attr').value; box.textContent = '';
+    BODEN[attr].forEach(function (c) { var sp = document.createElement('span'), i = document.createElement('i'); i.style.background = c[2]; sp.appendChild(i); sp.appendChild(document.createTextNode(c[1])); box.appendChild(sp); });
+  }
+  $('l-boden').addEventListener('change', function () { if (this.checked) resetStat('boden'); vis('boden', this.checked); vis('boden-o', this.checked); paintDots(); });
+  $('boden-attr').addEventListener('change', function () { if (map.getLayer('boden')) map.setPaintProperty('boden', 'fill-color', bodenColor(this.value)); bodenLegend(); });
+  $('boden-op').addEventListener('input', function () { if (map.getLayer('boden')) map.setPaintProperty('boden', 'fill-opacity', this.value / 100); });
+  bodenLegend();
 
   // ---------- Luftbild früher (Esri Wayback) ----------
   var wb = { items: {}, current: null, timer: null };
@@ -1470,6 +1533,80 @@
     return best;
   }
 
+  // Bodenform am Punkt: Kachel der Bodenkarte in voller Auflösung holen und das Polygon unter dem Punkt suchen
+  var VT_LIB = null;
+  function vtLib() {
+    if (!VT_LIB) {
+      VT_LIB = Promise.all([import('https://cdn.jsdelivr.net/npm/@mapbox/vector-tile@2.0.4/+esm'), import('https://cdn.jsdelivr.net/npm/pbf@4.0.1/+esm')])
+        .then(function (r) { return { VT: r[0].VectorTile, Pbf: r[1].default || r[1].Pbf }; });
+      VT_LIB.catch(function () { VT_LIB = null; });
+    }
+    return VT_LIB;
+  }
+  function bodenAt(lng, lat) {
+    var z = 15, x = lon2x(lng, z), y = lat2y(lat, z), pt = [lng, lat];
+    return Promise.all([vtLib(), fetchT(BODEN_TILES.replace('{z}', z).replace('{x}', x).replace('{y}', y), 15000)]).then(function (r) {
+      var lib = r[0], res = r[1];
+      if (res.status === 204 || res.status === 404) return null;
+      if (!res.ok) throw new Error('Boden ' + res.status);
+      return res.arrayBuffer().then(function (buf) {
+        var vt = new lib.VT(new lib.Pbf(new Uint8Array(buf)));
+        var hit = function (name) {
+          var L = vt.layers[name]; if (!L) return null;
+          for (var i = 0; i < L.length; i++) { var f = L.feature(i).toGeoJSON(x, y, z); if (inPoly(pt, f.geometry)) return f.properties; }
+          return null;
+        };
+        var b = hit('bodenform_mpoly');
+        if (b) return { b: b };
+        var o = hit('sonstigeflaechen_mpoly');
+        return o ? { sonst: BODEN_SONST[o.code] || 'nicht kartiert' } : null;
+      });
+    });
+  }
+  function bodenNone(v) { return v && v.sonst ? 'nicht kartiert: ' + v.sonst : 'nicht kartiert'; }
+  // Klima der letzten zehn vollen Jahre (Open-Meteo, Reanalyse ERA5), je Gegend nur einmal abfragen
+  var climaCache = {};
+  function climaAt(lng, lat) {
+    var k = (Math.round(lng * 20) / 20) + ',' + (Math.round(lat * 20) / 20);
+    if (!climaCache[k]) {
+      var y1 = new Date().getFullYear() - 1, y0 = y1 - 9;
+      climaCache[k] = fetchT('https://archive-api.open-meteo.com/v1/archive?latitude=' + lat.toFixed(3) + '&longitude=' + lng.toFixed(3) + '&start_date=' + y0 + '-01-01&end_date=' + y1 + '-12-31&daily=shortwave_radiation_sum,precipitation_sum,temperature_2m_min,temperature_2m_mean&timezone=Europe%2FVienna', 25000).then(json).then(function (j) {
+        var d = j && j.daily; if (!d || !d.time || !d.time.length) throw new Error('keine Klimadaten');
+        var n = 0, rad = 0, pr = 0, tm = 0, frost = 0, last = {};
+        d.time.forEach(function (t, i) {
+          var mn = d.temperature_2m_min[i];
+          if (d.shortwave_radiation_sum[i] != null) rad += d.shortwave_radiation_sum[i];
+          if (d.precipitation_sum[i] != null) pr += d.precipitation_sum[i];
+          if (d.temperature_2m_mean[i] != null) { tm += d.temperature_2m_mean[i]; n++; }
+          if (mn != null && mn < 0) { frost++; if (t.slice(5) < '07-01') last[t.slice(0, 4)] = t.slice(5); }
+        });
+        var yrs = (y1 - y0 + 1), lf = Object.keys(last).map(function (y) { return last[y]; }).sort();
+        return { y0: y0, y1: y1, kwh: rad / 3.6 / yrs, mm: pr / yrs, temp: n ? tm / n : null, frost: frost / yrs,
+          lastMed: lf.length ? lf[Math.floor(lf.length / 2)] : '', lastMax: lf.length ? lf[lf.length - 1] : '', elev: j.elevation };
+      });
+      climaCache[k].catch(function () { delete climaCache[k]; });
+    }
+    return climaCache[k];
+  }
+  var MON = ['Jänner', 'Februar', 'März', 'April', 'Mai', 'Juni'];
+  function mmdd(s) { return s ? Number(s.slice(3, 5)) + '. ' + MON[Number(s.slice(0, 2)) - 1] : ''; }
+  function rund(v, st) { return String(Math.round(v / st) * st).replace(/\B(?=(\d{3})+(?!\d))/g, '.'); }
+  // Nächste Grundwasser-Messstelle: Abfrage am Kartendienst mit großem Suchradius, dann die nächste auswählen
+  function gwNear(lng, lat) {
+    var c = merc(lng, lat), r = 6000, bb = [c[0] - r, c[1] - r, c[0] + r, c[1] + r];
+    var url = GW_WMS + '?service=WMS&version=1.3.0&request=GetFeatureInfo&layers=' + GW_LAYER + '&query_layers=' + GW_LAYER + '&styles=&crs=EPSG:3857&bbox=' + bb.join(',') +
+      '&width=200&height=200&i=100&j=100&info_format=application%2Fjson&feature_count=60&buffer=100';
+    return fetchT(url, 20000).then(json).then(function (j) {
+      var best = null;
+      (j.features || []).forEach(function (f) {
+        var g = f.geometry && f.geometry.coordinates; if (!g) return;
+        var ll = [g[0] / 20037508.34 * 180, Math.atan(Math.exp(g[1] / 20037508.34 * Math.PI)) * 360 / Math.PI - 90];
+        var d = hav([lng, lat], ll); if (!best || d < best.d) best = { d: d, p: f.properties || {} };
+      });
+      return best;
+    });
+  }
+
   // INVEKOS: Jahr eines Datensatzes und der jüngste Datensatz des Vorjahres
   function ivYear(v) { var m = /(20\d{2})/.exec(v || ''); return m ? Number(m[1]) : 0; }
   function prevIvLayer() {
@@ -1608,6 +1745,31 @@
       return v[0] ? 'ja (' + ivNowLbl + ')' : v[1] ? 'nein, ' + ivPrev.label + ' noch gemeldet' : 'nein';
     });
     late('Im HQ100-Bereich', wmsHit(HQ_WMS, HQ_LAYER, cur.lng, cur.lat), function (v) { return v ? 'ja, Überflutungsfläche' : 'nein'; });
+    // Boden, Klima, Grundwasser
+    var bd = bodenAt(cur.lng, cur.lat);
+    late('Boden (eBOD)', bd, function (v) {
+      if (!v || !v.b) return bodenNone(v);
+      var b = v.b; cur.boden = [BODENTYP[b.bodentyp] || b.bodentyp, bodenLbl('bodenart', b.bodenart)].filter(Boolean).join(', ');
+      return cur.boden;
+    });
+    late('Eignung laut Bodenkarte', bd, function (v) {
+      if (!v || !v.b) return '–';
+      return ['Grünland ' + (bodenLbl('gruenlandwert', v.b.gruenlandwert) || '?'), 'Acker ' + (bodenLbl('ackerwert', v.b.ackerwert) || '?')].join(' · ');
+    });
+    late('Wasser im Boden', bd, function (v) {
+      if (!v || !v.b) return '–';
+      return [bodenLbl('wasserverhaeltnisse', v.b.wasserverhaeltnisse), bodenLbl('nutzbare_feldkapazitaet', v.b.nutzbare_feldkapazitaet) ? 'Speicher ' + bodenLbl('nutzbare_feldkapazitaet', v.b.nutzbare_feldkapazitaet) : '', bodenLbl('gruendigkeit', v.b.gruendigkeit)].filter(Boolean).join(' · ');
+    });
+    late('Kalk und Säure', bd, function (v) { return v && v.b ? [BODEN_KALK[v.b.kalkgehalt], BODEN_PH[v.b.bodenreaktion]].filter(Boolean).join(' · ') || '–' : '–'; });
+    var cl = climaAt(cur.lng, cur.lat);
+    late('Sonne', cl, function (c) { return rund(c.kwh, 10) + ' kWh/m² Einstrahlung im Jahr (Mittel ' + c.y0 + '–' + c.y1 + ')'; });
+    late('Temperatur und Regen', cl, function (c) { return (c.temp != null ? 'Jahresmittel ' + c.temp.toFixed(1).replace('.', ',') + ' °C · ' : '') + rund(c.mm, 10) + ' mm Niederschlag im Jahr'; });
+    late('Frost', cl, function (c) { return Math.round(c.frost) + ' Frosttage im Jahr' + (c.lastMed ? '; letzter Frost im Frühling meist um den ' + mmdd(c.lastMed) + ', spätestens ' + mmdd(c.lastMax) : ''); });
+    late('Grundwasser-Messstelle', gwNear(cur.lng, cur.lat), function (g) {
+      if (!g || g.d > 5000) return 'keine im Umkreis von 5 km';
+      var p = g.p;
+      return [tx(p.MSTNAM02), fmtM(g.d) + ' entfernt', p.GOKMUA05 ? 'Gelände ' + fmtN(p.GOKMUA05) + ' m ü. A.' : '', tx(p.CODE04) ? 'Grundwasserkörper ' + tx(p.CODE04) : '', tx(p.DATERR07) ? 'misst seit ' + tx(p.DATERR07).slice(-4) : '', p.DATAUF08 ? 'aufgelassen' : ''].filter(Boolean).join(' · ');
+    });
     if (cur.lng > 16.17 && cur.lng < 16.59 && cur.lat > 48.11 && cur.lat < 48.33) {
       late('Widmung Wien (vereinfacht)', retry(function () { return widmungAt(cur.lng, cur.lat); }), function (v) { cur.widmung = v; return v || 'keine Widmungsfläche: meist Straße oder Gewässer, sonst außerhalb Wiens'; });
     }
@@ -1627,6 +1789,8 @@
     addLink(box, 'BEV-Kataster', 'https://kataster.bev.gv.at/#/center/' + lng + ',' + lat + '/zoom/18', true);
     addLink(box, 'Wayback-App', 'https://livingatlas.arcgis.com/wayback/#mapCenter=' + lng + '%2C' + lat + '%2C17', true);
     addLink(box, 'Widmung: NÖ Atlas', 'https://atlas.noe.gv.at/', true);
+    addLink(box, 'Bodenkarte eBOD', 'https://bodenkarte.at/', true);
+    addLink(box, 'Grundwasser: eHYD', 'https://ehyd.gv.at/', true);
     addLink(box, 'Versteigerungen: Ediktsdatei', 'https://edikte.justiz.gv.at/', true);
     if (insObj && insObj.url) addLink(box, 'Inserat öffnen', insObj.url);
     insSearchLinks();
