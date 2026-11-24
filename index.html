@@ -159,6 +159,7 @@
             <p><b>Luftbilder früher.</b> Esri Wayback zeigt frühere Stände der Esri-Luftbilder ab 2014 für ganz Österreich; das Flugdatum in Kartenmitte steht unter dem Regler. Für Wien gibt es zusätzlich die Luftbilder der Stadt, jedes Jahr ab 2014 und historische von 1938 bis 1992.</p>
             <p><b>Landwirtschaft.</b> INVEKOS zeigt Felder, die ein Betrieb bei der Agrarmarkt Austria für Förderungen gemeldet hat; Gärten, Wald und Bauland sind nie gemeldet. Der Agraratlas ergänzt Kultur, Bio-Flächen, gemeldete Brachen, Natura-2000-Schutzgebiete, Feuchtgebiete und Hangneigung. Eine gemeldete Brache ist bewusst stillgelegt und hat einen Bewirtschafter.</p>
             <p><b>Boden, Klima, Grundwasser.</b> Die Bodenkarte eBOD des Bundesforschungszentrums für Wald (BFW) zeigt für Äcker und Wiesen Bodenart, Wasserversorgung, Gründigkeit und die Eignung als Acker oder Grünland; „hochwertig“ heißt guter, tiefer Boden mit ausreichend Wasser. Sonne, Frost und Regen beim angeklickten Punkt sind Mittelwerte der letzten zehn Jahre aus Wetter-Reanalysen (Open-Meteo, Raster etwa 10 km), also für die Gegend und nicht für einen Hang oder Schatten. Grundwasser: Messstellen des Hydrographischen Dienstes (eHYD) mit Grundwasserkörper; die Messreihen stehen auf ehyd.gv.at.</p>
+            <p><b>Wald und Wandern.</b> Der Waldentwicklungsplan (WEP) des Landwirtschaftsministeriums teilt das Land in Funktionsflächen und nennt die Leitfunktion des Waldes darin: Nutzung, Schutz (vor Steinschlag, Lawinen, Erosion), Wohlfahrt (Klima, Wasser, Luft) oder Erholung. Die dreistellige Wertziffer bewertet Schutz, Wohlfahrt und Erholung jeweils von 1 (gering) bis 3 (hoch). Wo Erholung hoch ist, sind Wege und Besucher zu erwarten. Schutzwald und Bannwald dürfen nur eingeschränkt genutzt werden. Die Wanderwege stammen aus OpenStreetMap (Waymarked Trails).</p>
             <p><b>Hochwasser HQ100.</b> Flächen, die bei einem Hochwasser überflutet werden, wie es statistisch einmal in 100 Jahren vorkommt. In Niederösterreich darf dort kein Bauland und kein Kleingarten neu gewidmet werden; die Widmung selbst zeigt dort der NÖ Atlas (Link beim angeklickten Punkt).</p>
             <p><b>Lärm.</b> Lärmkarten des Bundes, Stand 2022, für Straße, Bahn, Flughäfen und große Industrieanlagen: Mittelwert über 24 Stunden, kartiert ab 55 dB. Ruhige Gebiete stammen aus den Aktionsplänen 2024.</p>
             <p><b>Internet.</b> Höchste verfügbare Bandbreite im Festnetz und im Mobilfunk laut Breitbandatlas.</p>
@@ -335,6 +336,19 @@
         <div class="swl" id="boden-lg" style="margin:6px 0 4px"></div>
         <div class="row"><input type="checkbox" id="w-gw"><span class="sw pt" style="background:#2563eb"></span><label for="w-gw">Grundwasser-Messstellen (eHYD)</label><span class="dot" data-dot="w-gw"></span></div>
         <p class="hint">Beim angeklickten Punkt stehen Boden, Wasserhaushalt, Sonne, Frost und Regen sowie die nächste Grundwasser-Messstelle. Die Bodenkarte deckt nur Äcker und Wiesen ab; Wald, Gärten im Ort und Bauland sind nicht kartiert.</p>
+      </div>
+    </details>
+
+    <details class="card grp" id="wald-card">
+      <summary>Wald und Wandern <span class="gcount"></span></summary>
+      <div class="gbody legend">
+        <div class="row"><input type="checkbox" id="n-56b"><span class="sw" style="background:#2e7d4f"></span><label for="n-56b">Wald laut Kataster (ab Zoom 14)</label></div>
+        <div class="row"><input type="checkbox" id="w-wep"><label for="w-wep">Waldentwicklungsplan: Leitfunktion des Waldes</label><span class="dot" data-dot="w-wep"></span></div>
+        <div class="swl"><span><i style="background:#107e00"></i>Nutzung</span><span><i style="background:#b51523"></i>Schutz</span><span><i style="background:#2e3785"></i>Wohlfahrt (Klima, Wasser, Luft)</span><span><i style="background:#f6f825"></i>Erholung</span></div>
+        <div class="row"><input type="checkbox" id="w-schutzw"><label for="w-schutzw">Hinweiskarte Schutzwald</label><span class="dot" data-dot="w-schutzw"></span></div>
+        <div class="row"><input type="checkbox" id="w-bannw"><label for="w-bannw">Bannwald</label><span class="dot" data-dot="w-bannw"></span></div>
+        <div class="row"><input type="checkbox" id="w-wander"><span class="sw line" style="border-top-color:#d6001c"></span><label for="w-wander">Markierte Wanderwege</label><span class="dot" data-dot="w-wander"></span></div>
+        <p class="hint">Beim angeklickten Punkt stehen der nächste Wald, die Waldfunktion laut Waldentwicklungsplan mit Bericht und ob dort Schutz- oder Bannwald ist.</p>
       </div>
     </details>
 
@@ -624,6 +638,8 @@
     ['lb2020', 'farbe', '2020', 20], ['lb2021', 'farbe', '2021', 20], ['lb2022', 'farbe', '2022', 21], ['lb2023', 'farbe', '2023', 21], ['lb2024', 'farbe', '2024', 21], ['lb', 'farbe', '2025', 21]];
   var WIEN_LB_BY = {}; WIEN_LB.forEach(function (w) { WIEN_LB_BY[w[0]] = w; });
   var GW_WMS = 'https://inspire.lfrz.gv.at/000501/wms', GW_LAYER = 'ehyd_2020_gw';
+  var WEP_WMS = 'https://inspire.lfrz.gv.at/000606/wms', WEP_LAYER = 'Oesterreichischer Waldentwicklungsplan - Waldfunktionsflaechen - OGD';
+  var SW_WMS = 'https://inspire.lfrz.gv.at/000505/wms';
   // Rasterschichten: Schalter, Quelle und Ebene tragen dieselbe Kennung
   var W_RASTER = {
     'w-fwp': { tiles: WMTS_W('flwbplmzk', 'rot', 'jpeg'), bounds: WIEN_BOUNDS, max: 19, op: 0.6, attr: 'Flächenwidmung © Stadt Wien' },
@@ -635,6 +651,10 @@
     'w-bbfix': { tiles: BBA('Festnetz', 'resources:bbafix'), max: 17, op: 0.6, attr: 'breitbandatlas.gv.at' },
     'w-bbmob': { tiles: BBA('Mobilfunknetz', 'resources:mobile'), max: 17, op: 0.6, attr: 'breitbandatlas.gv.at' },
     'w-fwpcode': { tiles: WMTS_W('flwbplgen', 'grau', 'png'), bounds: WIEN_BOUNDS, max: 19, op: 1, minzoom: 15, top: true },
+    'w-wep': { tiles: [WEP_WMS + '?service=WMS&version=1.3.0&request=GetMap&layers=' + encodeURIComponent(WEP_LAYER) + '&styles=&format=image%2Fpng&transparent=true&crs=EPSG%3A3857&width=512&height=512&bbox={bbox-epsg-3857}'], size: 512, max: 22, op: 0.35, attr: 'Waldentwicklungsplan © BML (CC BY 4.0)' },
+    'w-schutzw': { tiles: [SW_WMS + '?service=WMS&version=1.3.0&request=GetMap&layers=' + encodeURIComponent('Hinweiskarte Schutzwald') + '&styles=&format=image%2Fpng&transparent=true&crs=EPSG%3A3857&width=512&height=512&bbox={bbox-epsg-3857}'], size: 512, max: 22, op: 0.6, attr: 'Schutzwald, Bannwald © BML' },
+    'w-bannw': { tiles: [SW_WMS + '?service=WMS&version=1.3.0&request=GetMap&layers=Bannwald&styles=&format=image%2Fpng&transparent=true&crs=EPSG%3A3857&width=512&height=512&bbox={bbox-epsg-3857}'], size: 512, max: 22, op: 0.7, attr: 'Schutzwald, Bannwald © BML' },
+    'w-wander': { tiles: ['https://tile.waymarkedtrails.org/hiking/{z}/{x}/{y}.png'], max: 17, op: 0.9, top: true, attr: 'Wanderwege: <a href="https://hiking.waymarkedtrails.org">Waymarked Trails</a>, © OpenStreetMap (ODbL)' },
     'w-gw': { tiles: [GW_WMS + '?service=WMS&version=1.3.0&request=GetMap&layers=' + GW_LAYER + '&styles=&format=image%2Fpng&transparent=true&crs=EPSG%3A3857&width=512&height=512&bbox={bbox-epsg-3857}'], size: 512, max: 22, op: 1, top: true, attr: 'Grundwasser: eHYD, BML' }
   };
   var RANG_TXT = { B: 'Basisroute', G: 'Grundnetz', E: 'erweitertes Grundnetz' };
@@ -973,8 +993,10 @@
   });
   if (!HAS_AG) $('agrar-hint').textContent = 'Die Agraratlas-Daten konnten nicht geladen werden (Zusatzbibliothek fehlt). Nur die Hangneigung ist verfügbar.';
   Object.keys(NUTZ).forEach(function (ns) {
-    $('n-' + ns).addEventListener('change', function () { vis('nfl-' + ns, this.checked); });
+    $('n-' + ns).addEventListener('change', function () { vis('nfl-' + ns, this.checked); if (ns === '56') $('n-56b').checked = this.checked; });
   });
+  $('n-56b').checked = $('n-56').checked;
+  $('n-56b').addEventListener('change', function () { $('n-56').checked = this.checked; vis('nfl-56', this.checked); });
 
   // ---------- Bodenkarte: Schalter, Thema, Legende ----------
   function bodenLegend() {
@@ -1620,6 +1642,22 @@
     });
   }
 
+  // Waldentwicklungsplan am Punkt: Funktionsflächen mit Leitfunktion und Wertziffer (Schutz, Wohlfahrt, Erholung)
+  var WEP_STUFE = { 1: 'gering', 2: 'mittel', 3: 'hoch' };
+  function wepAt(lng, lat) {
+    var c = merc(lng, lat), r = 2, bb = [c[0] - r, c[1] - r, c[0] + r, c[1] + r];
+    var url = WEP_WMS + '?service=WMS&version=1.3.0&request=GetFeatureInfo&layers=' + encodeURIComponent(WEP_LAYER) + '&query_layers=' + encodeURIComponent(WEP_LAYER) +
+      '&styles=&crs=EPSG:3857&bbox=' + bb.join(',') + '&width=5&height=5&i=2&j=2&info_format=application%2Fjson&feature_count=5';
+    return fetchT(url, 20000).then(json).then(function (j) {
+      var fs = (j.features || []).filter(function (f) { return !f.geometry || inPoly(c, f.geometry); });
+      return fs.map(function (f) {
+        var p = f.properties || {}, kz = String(p.ext_Wert_Kz || ''), fn = tx(p.existinglanduseobject_specificlanduse_title) || tx(p.description).replace(/^\d+:\s*/, '').replace(/\s*\d{3}\s*\|.*$/, '');
+        var st = kz.length === 3 ? 'Schutz ' + WEP_STUFE[kz[0]] + ', Wohlfahrt ' + WEP_STUFE[kz[1]] + ', Erholung ' + WEP_STUFE[kz[2]] : '';
+        return { t: (fn ? 'Leitfunktion ' + fn.replace(/funktion$/i, '') : 'Funktionsfläche') + (kz ? ' (Wertziffer ' + kz + (st ? ': ' + st : '') + ')' : '') + (p.ext_BFI ? ', ' + tx(p.ext_BFI) + (p.ext_Gen_Jahr ? ' ' + p.ext_Gen_Jahr : '') : ''), href: safeUrl(p.descriptionreference_href) };
+      });
+    });
+  }
+
   // INVEKOS: Jahr eines Datensatzes und der jüngste Datensatz des Vorjahres
   function ivYear(v) { var m = /(20\d{2})/.exec(v || ''); return m ? Number(m[1]) : 0; }
   function prevIvLayer() {
@@ -1870,7 +1908,7 @@
         if (!t) return { t: 'nicht in OpenStreetMap gefunden', a: [['Websuche', 'https://www.google.com/search?q=' + encodeURIComponent('Gemeindeamt ' + (cur.gemeinde || '') + ' Öffnungszeiten')]] };
         return { t: [t.name, t.adr, t.hours ? 'geöffnet ' + t.hours : ''].filter(Boolean).join(' · '), a: [t.phone ? [t.phone, telHref(t.phone)] : null, t.email ? [t.email, 'mailto:' + t.email] : null, t.web && webHref(t.web) ? ['Webseite', webHref(t.web)] : null] };
       });
-      if (bz && bz.wien) late('Bezirk', gi.wd, function (w) {
+      if (bz && bz.wien) late('Stadt Wien', gi.wd, function (w) {
         if (!w) return 'nicht in Wikidata';
         return { t: [w.name, w.mayor ? 'Bezirksvorstehung: ' + w.mayor + (w.since ? ' (seit ' + w.since + ')' : '') + ', laut Wikidata' : ''].filter(Boolean).join(' · '),
           a: [w.web && webHref(w.web) ? ['Webseite des Bezirks', webHref(w.web)] : null, ['Magistratisches Bezirksamt', 'https://www.google.com/search?q=' + encodeURIComponent('Magistratisches Bezirksamt ' + w.name + ' Wien')]] };
@@ -1906,6 +1944,13 @@
     late('Nächster Bahnhof', od, function (d) { var n = nearestPt(d.rail, pt); return n && n.d <= 6000 ? fmtM(n.d) + (n.name ? ' · ' + n.name : '') : 'keiner im Umkreis von 6 km'; });
     late('Nächste Bushaltestelle', od, function (d) { var n = nearestPt(d.bus, pt); return n && n.d <= 1500 ? fmtM(n.d) + (n.name ? ' · ' + n.name : '') : 'keine im Umkreis von 1,5 km'; });
     late('Nächster Wald', od, function (d) { var w = distToPolys(pt, d.wald); return w === 0 ? 'liegt im Wald' : w < 10 ? 'direkt am Waldrand' : w <= 1500 ? fmtM(w) : 'keiner im Umkreis von 1,5 km'; });
+    late('Waldentwicklungsplan', wepAt(cur.lng, cur.lat), function (list) {
+      if (!list.length) return 'keine Funktionsfläche an dieser Stelle';
+      return { t: list.map(function (x) { return x.t; }).join('; '), a: list.filter(function (x) { return x.href; }).slice(0, 2).map(function (x, i) { return [list.length > 1 ? 'Bericht ' + (i + 1) : 'Bericht zur Fläche', x.href]; }) };
+    });
+    late('Schutz- oder Bannwald', Promise.all([wmsHit(SW_WMS, 'Bannwald', cur.lng, cur.lat).catch(function () { return null; }), wmsHit(SW_WMS, 'Hinweiskarte Schutzwald', cur.lng, cur.lat)]), function (v) {
+      return v[0] ? 'Bannwald: Nutzung stark eingeschränkt' : v[1] ? 'Schutzwald laut Hinweiskarte: Nutzung eingeschränkt' : 'nein';
+    });
     // Gesuchte Straße zusätzlich als Linie hervorheben
     if (opt.geo && /LineString/.test(opt.geo.type)) sel.features.push({ type: 'Feature', geometry: opt.geo, properties: {} });
     map.getSource('sel').setData(sel);
