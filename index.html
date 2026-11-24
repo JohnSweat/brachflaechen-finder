@@ -49,6 +49,8 @@
   table.kv { border-collapse: collapse; width: 100%; font-size: 13px; margin-top: 6px; }
   table.kv td { padding: 3px 4px; border-top: 1px solid var(--line); vertical-align: top; overflow-wrap: anywhere; }
   table.kv td:first-child { color: var(--muted); width: 38%; }
+  table.kv tr.kvh th { text-align: left; font-size: 11.5px; text-transform: uppercase; letter-spacing: .05em; color: var(--accent); padding: 10px 4px 3px; }
+  table.kv td a { color: var(--accent); }
   .search { display: flex; gap: 6px; } .search input { flex: 1; min-width: 0; } .search button { flex: none; }
   .grid2 { grid-template-columns: 1fr 1fr; }
   textarea { font: inherit; font-size: 13.5px; width: 100%; padding: 8px; border: 1px solid var(--line); border-radius: 7px; margin-top: 8px; }
@@ -320,8 +322,8 @@
         <div class="ctl">
           <label>Zeigt
             <select id="boden-attr">
-              <option value="gruenlandwert">Eignung als Grünland, Garten, Obst</option>
-              <option value="ackerwert">Eignung als Acker, Gemüse</option>
+              <option value="ackerwert">Eignung als Acker (auch für Gemüse)</option>
+              <option value="gruenlandwert">Eignung als Grünland (Wiese, Weide)</option>
               <option value="wasserverhaeltnisse">Wasserversorgung</option>
               <option value="nutzbare_feldkapazitaet">Wasserspeicher</option>
               <option value="gruendigkeit">Gründigkeit (für Wurzeln)</option>
@@ -888,7 +890,7 @@
   })();
 
   layers.splice(layers.map(function (l) { return l.id; }).indexOf('nfl-' + Object.keys(NUTZ)[0]), 0,
-    { id: 'boden', type: 'fill', source: 'boden', 'source-layer': 'bodenform_mpoly', layout: { visibility: 'none' }, paint: { 'fill-color': bodenColor('gruenlandwert'), 'fill-opacity': 0.55 } },
+    { id: 'boden', type: 'fill', source: 'boden', 'source-layer': 'bodenform_mpoly', layout: { visibility: 'none' }, paint: { 'fill-color': bodenColor('ackerwert'), 'fill-opacity': 0.55 } },
     { id: 'boden-o', type: 'line', source: 'boden', 'source-layer': 'bodenform_mpoly', minzoom: 13, layout: { visibility: 'none' }, paint: { 'line-color': '#5b4a2f', 'line-width': 0.6, 'line-opacity': 0.6 } });
 
   var map = new maplibregl.Map({
@@ -1651,6 +1653,22 @@
     var tr = document.createElement('tr'), a = document.createElement('td'), b = document.createElement('td');
     a.textContent = k; b.textContent = v; tr.appendChild(a); tr.appendChild(b); tbl.appendChild(tr);
   }
+  // Zelle füllen: Text oder { t: Text, a: [[Linktext, Adresse], …] }
+  function setCell(td, v) {
+    td.textContent = '';
+    if (!v || typeof v !== 'object') { td.textContent = v == null ? '' : String(v); return; }
+    if (v.t) td.appendChild(document.createTextNode(v.t));
+    (v.a || []).forEach(function (l, i) {
+      if (!l || !l[1]) return;
+      if (v.t || i) td.appendChild(document.createTextNode(' · '));
+      var a = document.createElement('a'); a.textContent = l[0]; a.href = l[1];
+      if (!/^(mailto|tel):/.test(l[1])) { a.target = '_blank'; a.rel = 'noopener'; }
+      td.appendChild(a);
+    });
+  }
+  function addHead(tbl, text) {
+    var tr = document.createElement('tr'), th = document.createElement('th'); th.colSpan = 2; th.textContent = text; tr.className = 'kvh'; tr.appendChild(th); tbl.appendChild(tr);
+  }
   function addLink(box, text, href, ghost) {
     var a = document.createElement('a'); a.className = 'btn' + (ghost ? ' ghost' : ''); a.textContent = text;
     a.href = href; a.target = '_blank'; a.rel = 'noopener'; box.appendChild(a);
@@ -1669,7 +1687,7 @@
   function reverseAdr(lng, lat) {
     var k = lng.toFixed(5) + ',' + lat.toFixed(5);
     if (!adrCache[k]) {
-      adrCache[k] = fetchT('https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=18&addressdetails=1&accept-language=de&lat=' + lat + '&lon=' + lng, 15000).then(json).then(function (j) {
+      adrCache[k] = nomFetch('https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=18&addressdetails=1&accept-language=de&lat=' + lat + '&lon=' + lng, 15000).then(json).then(function (j) {
         var t = adrText(j && j.address);
         return t ? { text: t, d: j.lat ? hav([lng, lat], [Number(j.lon), Number(j.lat)]) : 0, nr: !!(j.address && j.address.house_number) } : null;
       });
@@ -1677,6 +1695,61 @@
     }
     return adrCache[k];
   }
+  // Nominatim erlaubt höchstens eine Anfrage pro Sekunde: alle Abrufe laufen über diese Warteschlange
+  var nomLast = Promise.resolve(), nomT = 0;
+  function nomFetch(url, ms) {
+    var p = nomLast.then(function () {
+      var wait = Math.max(0, nomT + 1100 - Date.now());
+      return new Promise(function (r) { setTimeout(r, wait); }).then(function () { nomT = Date.now(); return fetchT(url, ms); });
+    });
+    nomLast = p.catch(function () {});
+    return p;
+  }
+  // Gemeinde: Bürgermeister, Webseite und Bezirk aus Wikidata (über die Gemeindekennziffer), Gemeindeamt aus OpenStreetMap
+  var gemCache = {};
+  function wdGemeinde(gkz) {
+    var q = 'SELECT ?g ?gLabel ?web ?email ?phone ?mayorLabel ?start ?bezLabel ?bezweb WHERE { ?g wdt:P964 "' + String(gkz).replace(/\D/g, '') + '" . ' +
+      'OPTIONAL { ?g wdt:P856 ?web } OPTIONAL { ?g wdt:P968 ?email } OPTIONAL { ?g wdt:P1329 ?phone } ' +
+      'OPTIONAL { ?g p:P6 ?st . ?st ps:P6 ?mayor . OPTIONAL { ?st pq:P580 ?start } FILTER NOT EXISTS { ?st pq:P582 ?end } } ' +
+      'OPTIONAL { ?g wdt:P131 ?bez . ?bez wdt:P31 wd:Q871419 . OPTIONAL { ?bez wdt:P856 ?bezweb } } ' +
+      'SERVICE wikibase:label { bd:serviceParam wikibase:language "de,en". } }';
+    return fetchT('https://query.wikidata.org/sparql?format=json&query=' + encodeURIComponent(q), 20000).then(json).then(function (j) {
+      var b = (j.results && j.results.bindings) || [], v = function (r, k) { return r[k] ? r[k].value : ''; };
+      if (!b.length) return null;
+      b.sort(function (x, y) { return v(y, 'start') < v(x, 'start') ? -1 : 1; });
+      var r = b[0];
+      return { name: v(r, 'gLabel'), web: v(r, 'web'), email: v(r, 'email').replace(/^mailto:/, ''), phone: v(r, 'phone'),
+        mayor: v(r, 'mayorLabel'), since: v(r, 'start').slice(0, 4), bez: v(r, 'bezLabel'), bezweb: v(r, 'bezweb'), qid: v(r, 'g').split('/').pop() };
+    });
+  }
+  function townhall(name, lng, lat) {
+    var vb = [lng - 0.2, lat + 0.13, lng + 0.2, lat - 0.13].map(function (x) { return x.toFixed(3); }).join(',');
+    return nomFetch('https://nominatim.openstreetmap.org/search?format=jsonv2&extratags=1&addressdetails=1&limit=8&countrycodes=at&accept-language=de&bounded=1&viewbox=' + vb +
+      '&q=' + encodeURIComponent('Rathaus in ' + name), 15000).then(json).then(function (list) {
+      var score = function (x) {
+        var t = x.extratags || {}, nm = x.name || x.display_name || '';
+        if (x.category !== 'amenity' || x.type !== 'townhall' || /Bezirkshauptmannschaft|Festsaal|Gemeindehaus|Feuerwehr/i.test(nm)) return -1;
+        return (t['townhall:type'] === 'municipality' ? 4 : 0) + (/amt|Rathaus/i.test(nm) ? 2 : 0) + ['phone', 'contact:phone', 'email', 'contact:email', 'website', 'contact:website', 'opening_hours'].filter(function (k) { return t[k]; }).length;
+      };
+      var best = null; (list || []).forEach(function (x) { if (score(x) >= 0 && (!best || score(x) > score(best))) best = x; });
+      if (!best) return null;
+      var t = best.extratags || {}, a = best.address || {};
+      return { name: best.name || 'Gemeindeamt', adr: [((a.road || '') + ' ' + (a.house_number || '')).trim(), ((a.postcode || '') + ' ' + (a.town || a.city || a.village || a.municipality || '')).trim()].filter(Boolean).join(', '),
+        phone: t.phone || t['contact:phone'] || '', email: t.email || t['contact:email'] || '', web: t.website || t['contact:website'] || '', hours: t.opening_hours || '' };
+    });
+  }
+  function gemInfo(gkz, name, lng, lat) {
+    if (!gemCache[gkz]) {
+      gemCache[gkz] = { wd: wdGemeinde(gkz), th: name ? townhall(name, lng, lat) : Promise.resolve(null) };
+      gemCache[gkz].wd.catch(function () { delete gemCache[gkz]; });
+      gemCache[gkz].th.catch(function () { if (gemCache[gkz]) gemCache[gkz].th = null; });
+    }
+    if (!gemCache[gkz].th) gemCache[gkz].th = name ? townhall(name, lng, lat) : Promise.resolve(null);
+    return gemCache[gkz];
+  }
+  function telHref(p) { return 'tel:' + String(p).replace(/[^\d+]/g, ''); }
+  function webHref(u) { return safeUrl(u); }
+
   // Einmal wiederholen, wenn ein Server kurz hakt
   function retry(fn) { return fn().catch(function () { return new Promise(function (r) { setTimeout(r, 1200); }).then(fn); }); }
 
@@ -1693,7 +1766,7 @@
     var late = function (label, promise, fmt) {
       var tr = document.createElement('tr'), a = document.createElement('td'), b = document.createElement('td');
       a.textContent = label; b.textContent = '…'; tr.appendChild(a); tr.appendChild(b); tbl.appendChild(tr);
-      promise.then(function (v) { if (token === curToken) { b.textContent = fmt(v); refreshLetter(); } }, function () { if (token === curToken) b.textContent = 'nicht abrufbar'; });
+      promise.then(function (v) { if (token === curToken) { setCell(b, fmt(v)); refreshLetter(); } }, function () { if (token === curToken) b.textContent = 'nicht abrufbar'; });
     };
     addRow(tbl, 'Koordinaten', lat + ', ' + lng);
     if (opt.adresse) { cur.adresse = opt.adresse; addRow(tbl, 'Adresse', opt.adresse); }
@@ -1757,6 +1830,7 @@
     });
     late('Im HQ100-Bereich', wmsHit(HQ_WMS, HQ_LAYER, cur.lng, cur.lat), function (v) { return v ? 'ja, Überflutungsfläche' : 'nein'; });
     // Boden, Klima, Grundwasser
+    addHead(tbl, 'Boden, Klima, Wasser');
     var bd = bodenAt(cur.lng, cur.lat);
     late('Boden (eBOD)', bd, function (v) {
       if (!v || !v.b) return bodenNone(v);
@@ -1765,7 +1839,8 @@
     });
     late('Eignung laut Bodenkarte', bd, function (v) {
       if (!v || !v.b) return '–';
-      return ['Grünland ' + (bodenLbl('gruenlandwert', v.b.gruenlandwert) || '?'), 'Acker ' + (bodenLbl('ackerwert', v.b.ackerwert) || '?')].join(' · ');
+      var a = bodenLbl('ackerwert', v.b.ackerwert), g = bodenLbl('gruenlandwert', v.b.gruenlandwert);
+      return [a ? 'Acker ' + a : '', g ? 'Grünland ' + g : ''].filter(Boolean).join(' · ') || 'nicht bewertet';
     });
     late('Wasser im Boden', bd, function (v) {
       if (!v || !v.b) return '–';
@@ -1783,6 +1858,36 @@
     });
     if (cur.lng > 16.17 && cur.lng < 16.59 && cur.lat > 48.11 && cur.lat < 48.33) {
       late('Widmung Wien (vereinfacht)', retry(function () { return widmungAt(cur.lng, cur.lat); }), function (v) { cur.widmung = v; return v || 'keine Widmungsfläche: meist Straße oder Gewässer, sonst außerhalb Wiens'; });
+    }
+    if (cur.gkz) {
+      var bz = bezOf(cur.gkz), gi = gemInfo(cur.gkz, bz && bz.wien ? '' : cur.gemeinde, cur.lng, cur.lat);
+      addHead(tbl, 'Gemeinde und Ämter');
+      if (!(bz && bz.wien)) late('Gemeindeamt', gi.th, function (t) {
+        if (!t) return { t: 'nicht in OpenStreetMap gefunden', a: [['Websuche', 'https://www.google.com/search?q=' + encodeURIComponent('Gemeindeamt ' + (cur.gemeinde || '') + ' Öffnungszeiten')]] };
+        return { t: [t.name, t.adr, t.hours ? 'geöffnet ' + t.hours : ''].filter(Boolean).join(' · '), a: [t.phone ? [t.phone, telHref(t.phone)] : null, t.email ? [t.email, 'mailto:' + t.email] : null, t.web && webHref(t.web) ? ['Webseite', webHref(t.web)] : null] };
+      });
+      late(bz && bz.wien ? 'Bürgermeister/in (Wien)' : 'Bürgermeister/in', Promise.all([gi.wd, Promise.resolve(gi.th).catch(function () { return null; })]), function (r) {
+        var w = r[0], th = r[1];
+        if (!w) return 'nicht in Wikidata';
+        var a = [];
+        if (!(bz && bz.wien)) { if (w.email && !(th && th.email)) a.push([w.email, 'mailto:' + w.email]); if (w.web && webHref(w.web) && !(th && th.web)) a.push(['Gemeinde-Webseite', webHref(w.web)]); }
+        return { t: w.mayor ? w.mayor + (w.since ? ' (seit ' + w.since + ')' : '') + ', laut Wikidata, bitte auf der Gemeinde-Webseite prüfen' : 'nicht in Wikidata eingetragen', a: a };
+      });
+      if (bz && !bz.wien) {
+        late('Bezirkshauptmannschaft', gi.wd, function (w) {
+          var n = (w && w.bez ? w.bez.replace(/^Bezirk\s+/, '') : bz.name);
+          return { t: 'BH ' + n, a: [w && w.bezweb && webHref(w.bezweb) ? ['Webseite', webHref(w.bezweb)] : ['Webseite', 'https://www.noe.gv.at/noe/Bezirkshauptmannschaften.html']] };
+        });
+        var gvTr = document.createElement('tr'), gvA = document.createElement('td'), gvB = document.createElement('td');
+        gvA.textContent = 'Grundverkehrsbehörde';
+        setCell(gvB, { t: 'bei der BH ' + bz.gv + '. Pacht von Acker, Wiese oder Wald über 2 ha braucht ihre Genehmigung, bis 2 ha nicht; Gärten und Bauland sind frei', a: [['Land NÖ: Grundverkehr', 'https://noe.gv.at/noe/Landwirtschaft/Rechtserwerb_an_land-_und_forstwirtschaftlichen_Liegensch.html']] });
+        gvTr.appendChild(gvA); gvTr.appendChild(gvB); tbl.appendChild(gvTr);
+      }
+      var lsTr = document.createElement('tr'), lsA = document.createElement('td'), lsB = document.createElement('td');
+      lsA.textContent = 'Leerstand';
+      setCell(lsB, { t: 'keine offene Liste; Gemeindeamt oder Region fragen', a: [['Websuche Leerstandsbörse', 'https://www.google.com/search?q=' + encodeURIComponent('"' + (cur.gemeinde || (bz && bz.name) || '') + '" Leerstand OR Leerstandsbörse OR Leerstandsmanagement')]] });
+      lsTr.appendChild(lsA); lsTr.appendChild(lsB); tbl.appendChild(lsTr);
+      addHead(tbl, 'Öffis und Wald');
     }
     if (cur.lng > 15.9 && cur.lng < 16.9 && cur.lat > 47.8 && cur.lat < 48.6) {
       late('Öffi-Haltestellen bis 500 m', retry(function () { return nearStops(cur.lng, cur.lat); }), function (v) { return v; });
@@ -1821,6 +1926,7 @@
   function curText() {
     var lines = [];
     Array.prototype.forEach.call($('pt-table').rows, function (tr) {
+      if (tr.className === 'kvh') { lines.push('', '— ' + tr.textContent + ' —'); return; }
       var v = tr.cells[1] ? tr.cells[1].textContent : '';
       if (v && v !== '…') lines.push(tr.cells[0].textContent + ': ' + v);
     });
@@ -2175,7 +2281,7 @@
     var q = $('q').value.trim(), box = $('results'); if (!q) return;
     $('q').blur();
     box.textContent = 'Suche…';
-    fetchT('https://nominatim.openstreetmap.org/search?format=jsonv2&addressdetails=1&polygon_geojson=1&polygon_threshold=0.0001&limit=5&countrycodes=at&accept-language=de&q=' + encodeURIComponent(q), 15000)
+    nomFetch('https://nominatim.openstreetmap.org/search?format=jsonv2&addressdetails=1&polygon_geojson=1&polygon_threshold=0.0001&limit=5&countrycodes=at&accept-language=de&q=' + encodeURIComponent(q), 15000)
       .then(json).then(function (list) {
         box.textContent = '';
         if (!list.length) { box.textContent = 'Nichts gefunden.'; return; }
