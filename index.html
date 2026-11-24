@@ -108,6 +108,9 @@
   .zpi.open > button { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
   .zpd { margin: 4px 0 6px; }
   .zpd table.kv { font-size: 12.5px; }
+  .tag.i { background: #ffe1c2; color: #8a4a00; }
+  #ins-form { border: 1px dashed var(--accent); border-radius: 8px; padding: 8px; margin: 6px 0; }
+  #pt-search .links { margin-top: 4px; }
   @media (max-width: 760px) {
     #app { display: block; height: 100vh; height: 100dvh; }
     #map { height: 100vh; height: 100dvh; }
@@ -184,6 +187,7 @@
           <button type="button" id="pt-save">Merken</button>
           <button type="button" class="ghost" id="pt-copy">Daten kopieren</button>
           <button type="button" class="ghost" id="pt-letter">Brief-Vorlage</button>
+          <button type="button" class="ghost" id="pt-ins">Inserat hier eintragen</button>
         </div>
         <div id="letter-box" hidden>
           <textarea id="letter" rows="14" aria-label="Brief-Vorlage"></textarea>
@@ -191,6 +195,10 @@
           <p class="hint">Eckige Klammern ersetzen. Kommen Adresse oder Widmung noch nach, ergänzt sich der Brief selbst, solange du nichts geändert hast.</p>
         </div>
         <div class="links" id="pt-links"></div>
+        <div id="pt-search">
+          <p class="sub-h">Angebote zum Pachten und Mieten in der Gegend</p>
+          <div class="links" id="pt-search-links"></div>
+        </div>
         <p class="hint">Mit Katastralgemeinde und Einlagezahl (EZ) bekommst du beim Bezirksgericht oder online einen Grundbuchauszug. Dort steht der Eigentümer.</p>
       </div>
     </div>
@@ -205,6 +213,36 @@
           <button type="button" class="ghost" id="merk-copy">Tabelle kopieren</button>
         </div>
         <p class="hint" id="merk-status"></p>
+      </div>
+    </details>
+
+    <details class="card grp" id="ins-card">
+      <summary>Inserate und Leerstand <span id="ins-count" style="font-weight:400;color:var(--muted)"></span></summary>
+      <div class="gbody">
+        <p class="hint" style="margin-top:0">Angebote zum Pachten oder Mieten, die du auf willhaben, landwirt.com, in der Gemeindezeitung oder am Schwarzen Brett findest, hier als orange Punkte festhalten: Stelle in der Karte antippen, dann „Inserat hier eintragen“. Wo du suchen kannst, steht beim angeklickten Punkt unter „Angebote in der Gegend“.</p>
+        <div id="ins-form" hidden>
+          <div class="ctl">
+            <label>Was <input type="text" id="ins-title" placeholder="z. B. Presshaus mit Garten, 800 m²"></label>
+            <label>Link zum Inserat <input type="text" id="ins-url" inputmode="url" placeholder="https://…"></label>
+            <div class="ctl grid2" style="margin-top:0">
+              <label>Art
+                <select id="ins-kind"><option>Grund pachten</option><option>Haus oder Presshaus mieten</option><option>Hof mieten oder pachten</option><option>Leerstand (ohne Inserat)</option><option>Sonstiges</option></select>
+              </label>
+              <label>Preis <input type="text" id="ins-price" placeholder="z. B. 150 €/Monat"></label>
+            </div>
+            <label>Notiz <input type="text" id="ins-note" placeholder="z. B. Kontakt, Besichtigung"></label>
+          </div>
+          <p class="hint" id="ins-where"></p>
+          <div class="links"><button type="button" id="ins-save">Speichern</button><button type="button" class="ghost" id="ins-cancel">Abbrechen</button></div>
+        </div>
+        <p class="hint" id="ins-empty">Noch keine Inserate eingetragen. Sie bleiben nur in diesem Browser auf diesem Gerät.</p>
+        <div id="ins-list" class="list"></div>
+        <div class="links">
+          <button type="button" class="ghost" id="ins-csv">Als Tabelle speichern (CSV)</button>
+          <button type="button" class="ghost" id="ins-copy">Tabelle kopieren</button>
+        </div>
+        <p class="hint" id="ins-status"></p>
+        <p class="note">Inserate erscheinen nicht automatisch: willhaben und die anderen Börsen bieten keine offene Schnittstelle, und das automatische Auslesen verbieten ihre Nutzungsbedingungen. Für Leerstand gibt es in Niederösterreich keine offene Gesamtliste; manche Gemeinden und Regionen führen eigene Börsen, die Suche beim Punkt findet sie.</p>
       </div>
     </details>
 
@@ -445,6 +483,20 @@
     41: { name: 'Gebäude', color: '#c9667a', op: 0.6 }
   };
 
+  // Bezirke Niederösterreichs nach den ersten drei Stellen der Gemeindekennziffer:
+  // [Name, Pfad bei willhaben, Sitz der zuständigen Grundverkehrsbehörde laut Land NÖ]
+  var NOE_BEZ = {
+    301: ['Krems an der Donau (Stadt)', 'krems-an-der-donau', 'Waidhofen an der Thaya'], 302: ['St. Pölten (Stadt)', 'sankt-poelten', 'Lilienfeld'],
+    303: ['Waidhofen an der Ybbs (Stadt)', 'waidhofen-an-der-ybbs', 'Melk'], 304: ['Wiener Neustadt (Stadt)', 'wiener-neustadt', 'Bruck an der Leitha'],
+    305: ['Amstetten', 'amstetten', 'Melk'], 306: ['Baden', 'baden', 'Bruck an der Leitha'], 307: ['Bruck an der Leitha', 'bruck-an-der-leitha', 'Bruck an der Leitha'],
+    308: ['Gänserndorf', 'gaenserndorf', 'Hollabrunn'], 309: ['Gmünd', 'gmuend', 'Waidhofen an der Thaya'], 310: ['Hollabrunn', 'hollabrunn', 'Hollabrunn'],
+    311: ['Horn', 'horn', 'Waidhofen an der Thaya'], 312: ['Korneuburg', 'korneuburg', 'Hollabrunn'], 313: ['Krems-Land', 'krems-land', 'Waidhofen an der Thaya'],
+    314: ['Lilienfeld', 'lilienfeld', 'Lilienfeld'], 315: ['Melk', 'melk', 'Melk'], 316: ['Mistelbach', 'mistelbach', 'Hollabrunn'],
+    317: ['Mödling', 'moedling', 'Bruck an der Leitha'], 318: ['Neunkirchen', 'neunkirchen', 'Bruck an der Leitha'], 319: ['St. Pölten-Land', 'sankt-poelten-land', 'Lilienfeld'],
+    320: ['Scheibbs', 'scheibbs', 'Melk'], 321: ['Tulln', 'tulln', 'Lilienfeld'], 322: ['Waidhofen an der Thaya', 'waidhofen-an-der-thaya', 'Waidhofen an der Thaya'],
+    323: ['Wiener Neustadt-Land', 'wiener-neustadt-land', 'Bruck an der Leitha'], 325: ['Zwettl', 'zwettl', 'Waidhofen an der Thaya']
+  };
+  function bezOf(gkz) { var c = Math.floor(Number(gkz) / 100); return NOE_BEZ[c] ? { code: c, name: NOE_BEZ[c][0], wh: 'niederoesterreich/' + NOE_BEZ[c][1], gv: NOE_BEZ[c][2] } : c >= 900 && c < 1000 ? { code: c, name: 'Wien', wh: 'wien', wien: true } : null; }
   var NS_NAME = { 40: 'Landwirtschaftlich genutzte Grundfläche', 41: 'Gebäude', 42: 'Parkplatz', 48: 'Acker, Wiese oder Weide', 52: 'Garten', 53: 'Weingarten', 54: 'Alpe', 55: 'Krummholzfläche', 56: 'Wald', 57: 'Verbuschte Fläche', 58: 'Forststraße', 59: 'Fließendes Gewässer', 60: 'Stehendes Gewässer', 61: 'Feuchtgebiet', 62: 'Vegetationsarme Fläche', 63: 'Betriebsfläche', 64: 'Gewässerrandfläche', 65: 'Verkehrsrandfläche', 72: 'Friedhof', 83: 'Gebäudenebenfläche', 84: 'Abbaufläche, Halde oder Deponie', 87: 'Fels- und Geröllfläche', 88: 'Gletscher', 92: 'Schienenverkehrsanlage', 95: 'Straßenverkehrsanlage', 96: 'Freizeitfläche' };
 
   // ---------- gespeicherte Ansicht ----------
@@ -487,7 +539,11 @@
     { id: 'gnr', type: 'symbol', source: 'kataster', 'source-layer': 'gnr', minzoom: 16,
       layout: { 'text-field': ['to-string', ['get', 'gnr']], 'text-font': ['Roboto Bold'], 'text-size': 11 },
       paint: { 'text-color': '#fff7c2', 'text-halo-color': '#111', 'text-halo-width': 1.3 } },
-    { id: 'merk-pt', type: 'circle', source: 'merk', paint: { 'circle-radius': 7, 'circle-color': '#ff2fd0', 'circle-stroke-color': '#fff', 'circle-stroke-width': 2 } }
+    { id: 'merk-pt', type: 'circle', source: 'merk', paint: { 'circle-radius': 7, 'circle-color': '#ff2fd0', 'circle-stroke-color': '#fff', 'circle-stroke-width': 2 } },
+    { id: 'ins-pt', type: 'circle', source: 'ins', paint: { 'circle-radius': 8, 'circle-color': ['match', ['get', 'st'], 'abgesagt', '#9ca3af', 'vergeben', '#9ca3af', '#ff8a00'], 'circle-stroke-color': '#3b1d00', 'circle-stroke-width': 2 } },
+    { id: 'ins-lbl', type: 'symbol', source: 'ins', minzoom: 13,
+      layout: { 'text-field': ['get', 'lbl'], 'text-font': ['Roboto Bold'], 'text-size': 11, 'text-offset': [0, 1.1], 'text-anchor': 'top', 'text-max-width': 12 },
+      paint: { 'text-color': '#3b1d00', 'text-halo-color': '#ffffff', 'text-halo-width': 1.6 } }
   );
 
   // ---------- Agraratlas (eine PMTiles-Datei mit Vektordaten des Ministeriums) ----------
@@ -749,7 +805,8 @@
     kataster: { type: 'vector', tiles: [KAT_TILES], minzoom: 0, maxzoom: 16, attribution: '© <a href="https://bev.gv.at">BEV</a>' },
     sel: { type: 'geojson', data: { type: 'FeatureCollection', features: [] } },
     cand: { type: 'geojson', data: { type: 'FeatureCollection', features: [] } },
-    merk: { type: 'geojson', data: { type: 'FeatureCollection', features: [] } }
+    merk: { type: 'geojson', data: { type: 'FeatureCollection', features: [] } },
+    ins: { type: 'geojson', data: { type: 'FeatureCollection', features: [] } }
   };
   if (HAS_AG) SOURCES.agrar = { type: 'vector', url: 'pmtiles://https://agraratlas.inspire.gv.at/map/tiles/agraratlas.pmtiles', attribution: 'Agraratlas © BMLUK, AMA' };
   Object.keys(WS).forEach(function (k) {
@@ -1479,7 +1536,8 @@
     opt = opt || {};
     var lat = e.lngLat.lat.toFixed(6), lng = e.lngLat.lng.toFixed(6);
     var token = ++curToken;
-    cur = { lat: Number(lat), lng: Number(lng), gnr: '', ez: '', kgnr: '', kg: '', gemeinde: '', nutzung: '', kultur: '', bio: '', widmung: '', adresse: '', adresseNah: false };
+    cur = { lat: Number(lat), lng: Number(lng), gnr: '', ez: '', kgnr: '', kg: '', gemeinde: '', gkz: '', nutzung: '', kultur: '', bio: '', widmung: '', adresse: '', adresseNah: false };
+    $('ins-form').hidden = true;
     $('letter-box').hidden = true; letterAuto = '';
     marker.setLngLat(e.lngLat).addTo(map);
     var tbl = $('pt-table'); tbl.textContent = '';
@@ -1499,6 +1557,13 @@
       });
     }
     var sel = { type: 'FeatureCollection', features: [] };
+    var kgAll = map.queryRenderedFeatures(e.point, { layers: ['kg-hit'] })[0];
+    if (kgAll && kgAll.properties && kgAll.properties.gkz) cur.gkz = String(kgAll.properties.gkz);
+    var pgAll = map.queryRenderedFeatures(e.point, { layers: ['pg-hit'] })[0];
+    if (pgAll && pgAll.properties && pgAll.properties.pg) cur.gemeinde = String(pgAll.properties.pg);
+    // Eingetragenes Inserat an dieser Stelle
+    var insHit = map.queryRenderedFeatures(e.point, { layers: ['ins-pt'] })[0], insObj = null;
+    if (insHit) { insObj = insFind(insHit.properties.id); if (insObj) { addRow(tbl, 'Inserat', [insObj.kind, insObj.title, insObj.price].filter(Boolean).join(' · ')); if (insObj.note) addRow(tbl, 'Notiz zum Inserat', insObj.note); } }
     if (map.getZoom() >= 14) {
       var one = function (layer) { var f = map.queryRenderedFeatures(e.point, { layers: [layer] })[0]; return f || null; };
       var g = one('gst-hit'), kg = one('kg-hit'), pg = one('pg-hit'), n = one('nfl-hit');
@@ -1563,6 +1628,8 @@
     addLink(box, 'Wayback-App', 'https://livingatlas.arcgis.com/wayback/#mapCenter=' + lng + '%2C' + lat + '%2C17', true);
     addLink(box, 'Widmung: NÖ Atlas', 'https://atlas.noe.gv.at/', true);
     addLink(box, 'Versteigerungen: Ediktsdatei', 'https://edikte.justiz.gv.at/', true);
+    if (insObj && insObj.url) addLink(box, 'Inserat öffnen', insObj.url);
+    insSearchLinks();
     wr.qs.slice(0, 2).forEach(function (q) { addLink(box, 'Zeitplan: ' + q.t, 'https://www.google.com/search?q=' + encodeURIComponent(q.q), true); });
     $('pt-empty').hidden = true; $('pt-body').hidden = false;
     if (isMobile()) {
@@ -1707,6 +1774,103 @@
     copyText(merkTsv(), $('merk-status'), 'Tabelle kopiert. In Excel oder Google Tabellen einfügen.');
   });
 
+  // ---------- Inserate (Pacht- und Mietangebote, von Hand eingetragen; bleiben im Browser) ----------
+  var INS_STATUS = ['neu', 'angefragt', 'besichtigt', 'interessant', 'abgesagt', 'vergeben'];
+  var ins = [];
+  try { var im = JSON.parse(localStorage.getItem('brach-ins') || '[]'); if (Array.isArray(im)) ins = im; } catch (e) {}
+  function insSave() { try { localStorage.setItem('brach-ins', JSON.stringify(ins)); return true; } catch (e) { return false; } }
+  function insFind(id) { for (var i = 0; i < ins.length; i++) if (ins[i].id === id) return ins[i]; return null; }
+  // Nur echte Webadressen als Link übernehmen
+  function safeUrl(u) { u = String(u || '').trim(); if (!u) return ''; if (!/^https?:\/\//i.test(u)) u = 'https://' + u; try { var x = new URL(u); return /^https?:$/.test(x.protocol) ? x.href : ''; } catch (e) { return ''; } }
+  function insRender() {
+    var box = $('ins-list'); box.textContent = '';
+    $('ins-count').textContent = ins.length ? '(' + ins.length + ')' : '';
+    $('ins-empty').hidden = ins.length > 0;
+    ins.forEach(function (o, idx) {
+      var it = document.createElement('div'); it.className = 'item';
+      var t = document.createElement('b'); var tag = document.createElement('span'); tag.className = 'tag i'; tag.textContent = o.kind || 'Inserat';
+      t.appendChild(tag); t.appendChild(document.createTextNode(o.title || 'ohne Titel'));
+      var meta = document.createElement('div'); meta.className = 'meta'; meta.textContent = [o.price, o.gemeinde, o.note, 'eingetragen ' + fmtD(o.ts)].filter(Boolean).join(' · ');
+      var sel = document.createElement('select'); sel.setAttribute('aria-label', 'Status');
+      INS_STATUS.forEach(function (s) { var op = document.createElement('option'); op.textContent = s; sel.appendChild(op); });
+      sel.value = o.status || 'neu';
+      sel.addEventListener('change', function () { o.status = sel.value; insSave(); insMap(); });
+      var row = document.createElement('div'); row.className = 'links';
+      var show = document.createElement('button'); show.type = 'button'; show.className = 'ghost'; show.textContent = 'Zeigen';
+      show.addEventListener('click', function () {
+        map.once('moveend', function () { setTimeout(function () { var p = maplibregl.LngLat.convert([o.lng, o.lat]); showPoint({ lngLat: p, point: map.project(p) }); }, 300); });
+        map.flyTo({ center: [o.lng, o.lat], zoom: Math.max(map.getZoom(), 16) }); if (isMobile()) setPanel(false);
+      });
+      row.appendChild(show);
+      if (o.url) { var a = document.createElement('a'); a.className = 'btn ghost'; a.textContent = 'Inserat öffnen'; a.href = o.url; a.target = '_blank'; a.rel = 'noopener'; row.appendChild(a); }
+      var del = document.createElement('button'); del.type = 'button'; del.className = 'ghost'; del.textContent = 'Löschen';
+      del.addEventListener('click', function () {
+        if (del.dataset.sure) { ins.splice(idx, 1); insSave(); insRender(); }
+        else { del.dataset.sure = '1'; del.textContent = 'Wirklich löschen?'; }
+      });
+      row.appendChild(del);
+      it.appendChild(t); it.appendChild(meta); it.appendChild(sel); it.appendChild(row); box.appendChild(it);
+    });
+    insMap();
+  }
+  function insMap() {
+    var src = null; try { src = map.getSource('ins'); } catch (e) {}
+    if (src) src.setData({ type: 'FeatureCollection', features: ins.map(function (o) {
+      return { type: 'Feature', geometry: { type: 'Point', coordinates: [o.lng, o.lat] }, properties: { id: o.id, st: o.status || 'neu', lbl: o.price || o.kind || '' } };
+    }) });
+  }
+  $('pt-ins').addEventListener('click', function () {
+    if (!cur) return;
+    $('ins-title').value = ''; $('ins-url').value = ''; $('ins-price').value = ''; $('ins-note').value = '';
+    $('ins-where').textContent = 'Ort: ' + [cur.adresse, cur.gemeinde, cur.lat + ', ' + cur.lng].filter(Boolean).join(' · ');
+    $('ins-form').hidden = false; $('ins-card').open = true;
+    $('ins-card').scrollIntoView({ block: 'start' }); $('ins-title').focus();
+  });
+  $('ins-cancel').addEventListener('click', function () { $('ins-form').hidden = true; });
+  $('ins-save').addEventListener('click', function () {
+    if (!cur) return;
+    var raw = $('ins-url').value.trim(), url = safeUrl(raw);
+    if (raw && !url) { $('ins-status').textContent = 'Der Link sieht nicht wie eine Webadresse aus.'; return; }
+    var o = { id: Date.now().toString(36), lat: cur.lat, lng: cur.lng, title: $('ins-title').value.trim(), url: url, kind: $('ins-kind').value,
+      price: $('ins-price').value.trim(), note: $('ins-note').value.trim(), gemeinde: cur.gemeinde || '', adresse: cur.adresse || '', status: 'neu', ts: new Date().toISOString().slice(0, 10) };
+    ins.push(o); var ok = insSave(); insRender();
+    $('ins-form').hidden = true;
+    $('ins-status').textContent = ok ? 'Eingetragen. Der orange Punkt zeigt es in der Karte.' : 'Eingetragen, aber nur bis zum Schließen der Seite (Speicher im Browser gesperrt).';
+  });
+  function insRows() {
+    var rows = [['Art', 'Was', 'Preis', 'Gemeinde', 'Adresse', 'Status', 'Notiz', 'Link', 'Koordinaten', 'Eingetragen am', 'Google Maps']];
+    ins.forEach(function (o) { rows.push([o.kind, o.title, o.price, o.gemeinde, o.adresse, o.status, o.note, o.url, o.lat + ', ' + o.lng, o.ts, 'https://www.google.com/maps/search/?api=1&query=' + o.lat + ',' + o.lng]); });
+    return rows;
+  }
+  $('ins-csv').addEventListener('click', function () {
+    if (!ins.length) { $('ins-status').textContent = 'Noch keine Inserate eingetragen.'; return; }
+    var q = function (v) { return '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"'; };
+    try {
+      var url = URL.createObjectURL(new Blob(['﻿' + insRows().map(function (r) { return r.map(q).join(';'); }).join('\r\n')], { type: 'text/csv;charset=utf-8' }));
+      var a = document.createElement('a'); a.href = url; a.download = 'inserate-pacht-miete.csv'; document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(function () { URL.revokeObjectURL(url); }, 5000);
+      $('ins-status').textContent = 'Datei inserate-pacht-miete.csv gespeichert.';
+    } catch (e) { $('ins-status').textContent = 'Speichern nicht möglich. Nimm „Tabelle kopieren".'; }
+  });
+  $('ins-copy').addEventListener('click', function () {
+    if (!ins.length) { $('ins-status').textContent = 'Noch keine Inserate eingetragen.'; return; }
+    var c = function (v) { return String(v == null ? '' : v).replace(/[\t\r\n]+/g, ' '); };
+    copyText(insRows().map(function (r) { return r.map(c).join('\t'); }).join('\n'), $('ins-status'), 'Tabelle kopiert. In Excel oder Google Tabellen einfügen.');
+  });
+  // Suchlinks für Angebote rund um den angeklickten Punkt: willhaben nach Bezirk, landwirt.com, Websuche nach Gemeinde
+  function insSearchLinks() {
+    var box = $('pt-search-links'); box.textContent = '';
+    var bz = cur.gkz ? bezOf(cur.gkz) : null, ort = cur.gemeinde || (bz && bz.name) || '';
+    var wh = 'https://www.willhaben.at/iad/immobilien/', area = bz ? bz.wh + '/' : 'niederoesterreich/';
+    addLink(box, 'willhaben: Haus mieten' + (bz ? ' (' + (bz.wien ? 'Wien' : 'Bezirk ' + bz.name) + ')' : ''), wh + 'haus-mieten/' + area, true);
+    addLink(box, 'willhaben: Grund, Stichwort Pacht', wh + 'grundstuecke/' + area + '?keyword=pacht', true);
+    addLink(box, 'landwirt.com: Pacht und Vermietung', 'https://www.landwirt.com/kleinanzeigen/pacht-vermietung', true);
+    if (ort) {
+      addLink(box, 'Websuche: Pacht oder Miete in ' + ort, 'https://www.google.com/search?q=' + encodeURIComponent('"' + ort + '" (Pacht OR pachten OR "zu vermieten") (Garten OR Grundstück OR Presshaus OR Keller OR Bauernhof)'), true);
+      addLink(box, 'Websuche: Leerstand in ' + ort, 'https://www.google.com/search?q=' + encodeURIComponent('"' + ort + '" Leerstand OR Leerstandsbörse OR Leerstandsmanagement'), true);
+    }
+  }
+
   // ---------- Kandidaten im Ausschnitt ----------
   function candCollect(ns, minA, b) {
     var seen = {}, out = [];
@@ -1809,8 +1973,8 @@
     wbMeta();
   }
   map.on('moveend', onMove);
-  map.on('load', function () { applyBase(); onMove(); paintDots(); merkRender(); });
-  merkRender();
+  map.on('load', function () { applyBase(); onMove(); paintDots(); merkRender(); insRender(); });
+  merkRender(); insRender();
 
   // ---------- Ortssuche (Nominatim / OpenStreetMap): Adressen und Straßen werden markiert wie ein Klick ----------
   var GROSS = ['country', 'state', 'region', 'county', 'municipality', 'city', 'town', 'village', 'hamlet', 'suburb', 'city_district', 'district', 'borough', 'quarter', 'neighbourhood', 'postcode'];
