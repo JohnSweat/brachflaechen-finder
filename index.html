@@ -5,12 +5,13 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Brachflächen-Finder Österreich</title>
 <meta name="theme-color" content="#2f6b4f">
+<meta name="referrer" content="strict-origin-when-cross-origin">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
-<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
-<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
-<script src="https://unpkg.com/pmtiles@3.2.1/dist/pmtiles.js"></script>
+<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" integrity="sha384-MinO0mNliZ3vwppuPOUnGa+iq619pfMhLVUXfC4LHwSCvF9H+6P/KO4Q7qBOYV5V" crossorigin="anonymous">
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js" integrity="sha384-SYKAG6cglRMN0RVvhNeBY0r3FYKNOJtznwA0v7B5Vp9tr31xAHsZC0DqkQ/pZDmj" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/pmtiles@3.2.1/dist/pmtiles.js" integrity="sha384-QfbOCebHNw8pQiPAOd2IFee2v2A5VYZxBk0+JGZ5H+3mfzVIp6zsQNkTsfGJot93" crossorigin="anonymous"></script>
 <style>
   :root {
     --bg: #f6f4ef; --panel: #fffdf8; --ink: #1f2a24; --muted: #5d6a62; --line: #ddd8cc;
@@ -560,6 +561,15 @@
     320: ['Scheibbs', 'scheibbs', 'Melk'], 321: ['Tulln', 'tulln', 'Lilienfeld'], 322: ['Waidhofen an der Thaya', 'waidhofen-an-der-thaya', 'Waidhofen an der Thaya'],
     323: ['Wiener Neustadt-Land', 'wiener-neustadt-land', 'Bruck an der Leitha'], 325: ['Zwettl', 'zwettl', 'Waidhofen an der Thaya']
   };
+  // Bundesland nach der ersten Stelle der Gemeindekennziffer: [Name, Pfad bei willhaben, Landes-GIS für die Widmung]
+  var BUNDESLAND = {
+    1: ['Burgenland', 'burgenland', 'GeoDaten Burgenland', 'https://geodaten.bgld.gv.at/'], 2: ['Kärnten', 'kaernten', 'KAGIS', 'https://kagis.ktn.gv.at/'],
+    3: ['Niederösterreich', 'niederoesterreich', 'NÖ Atlas', 'https://atlas.noe.gv.at/'], 4: ['Oberösterreich', 'oberoesterreich', 'DORIS', 'https://www.doris.at/'],
+    5: ['Salzburg', 'salzburg', 'SAGIS', 'https://www.salzburg.gv.at/sagis'], 6: ['Steiermark', 'steiermark', 'GIS-Steiermark', 'https://gis.stmk.gv.at/'],
+    7: ['Tirol', 'tirol', 'tiris', 'https://maps.tirol.gv.at/'], 8: ['Vorarlberg', 'vorarlberg', 'VoGIS', 'https://vogis.cnv.at/atlas/'],
+    9: ['Wien', 'wien', 'Flächenwidmung Wien', 'https://www.wien.gv.at/flaechenwidmung/public/']
+  };
+  function landOf(gkz) { var d = String(gkz || '').replace(/\D/g, '').charAt(0), l = String(gkz || '').replace(/\D/g, '').length === 5 && BUNDESLAND[d]; return l ? { code: Number(d), name: l[0], wh: l[1], gis: l[2], gisUrl: l[3] } : null; }
   function bezOf(gkz) { var c = Math.floor(Number(gkz) / 100); return NOE_BEZ[c] ? { code: c, name: NOE_BEZ[c][0], wh: 'niederoesterreich/' + NOE_BEZ[c][1], gv: NOE_BEZ[c][2] } : c >= 900 && c < 1000 ? { code: c, name: 'Wien', wh: 'wien', wien: true } : null; }
   var NS_NAME = { 40: 'Landwirtschaftlich genutzte Grundfläche', 41: 'Gebäude', 42: 'Parkplatz', 48: 'Acker, Wiese oder Weide', 52: 'Garten', 53: 'Weingarten', 54: 'Alpe', 55: 'Krummholzfläche', 56: 'Wald', 57: 'Verbuschte Fläche', 58: 'Forststraße', 59: 'Fließendes Gewässer', 60: 'Stehendes Gewässer', 61: 'Feuchtgebiet', 62: 'Vegetationsarme Fläche', 63: 'Betriebsfläche', 64: 'Gewässerrandfläche', 65: 'Verkehrsrandfläche', 72: 'Friedhof', 83: 'Gebäudenebenfläche', 84: 'Abbaufläche, Halde oder Deponie', 87: 'Fels- und Geröllfläche', 88: 'Gletscher', 92: 'Schienenverkehrsanlage', 95: 'Straßenverkehrsanlage', 96: 'Freizeitfläche' };
 
@@ -1549,8 +1559,8 @@
       .then(function (b) { return createImageBitmap(b); })
       .then(function (bmp) {
         var cv = document.createElement('canvas'); cv.width = w; cv.height = h;
-        var x = cv.getContext('2d'); x.drawImage(bmp, 0, 0);
-        return x.getImageData(0, 0, w, h);
+        try { var x = cv.getContext('2d'); x.drawImage(bmp, 0, 0); return x.getImageData(0, 0, w, h); }
+        finally { if (bmp.close) bmp.close(); }
       });
   }
   function wmsHit(base, layer, lng, lat, sig) {
@@ -1738,7 +1748,8 @@
   }
 
   // Waldentwicklungsplan am Punkt: Funktionsflächen mit Leitfunktion und Wertziffer (Schutz, Wohlfahrt, Erholung)
-  var WEP_STUFE = { 1: 'gering', 2: 'mittel', 3: 'hoch' };
+  var WEP_STUFE = { 0: 'keine besondere', 1: 'gering', 2: 'mittel', 3: 'hoch' };
+  function wepStufe(d) { return WEP_STUFE[d] || 'unbekannt (' + d + ')'; }
   function wepAt(lng, lat, sig) {
     var c = merc(lng, lat), r = 2, bb = [c[0] - r, c[1] - r, c[0] + r, c[1] + r];
     var url = WEP_WMS + '?service=WMS&version=1.3.0&request=GetFeatureInfo&layers=' + encodeURIComponent(WEP_LAYER) + '&query_layers=' + encodeURIComponent(WEP_LAYER) +
@@ -1747,7 +1758,7 @@
       var fs = (j.features || []).filter(function (f) { return !f.geometry || inPoly(c, f.geometry); });
       return fs.map(function (f) {
         var p = f.properties || {}, kz = String(p.ext_Wert_Kz || ''), fn = tx(p.existinglanduseobject_specificlanduse_title) || tx(p.description).replace(/^\d+:\s*/, '').replace(/\s*\d{3}\s*\|.*$/, '');
-        var st = kz.length === 3 ? 'Schutz ' + WEP_STUFE[kz[0]] + ', Wohlfahrt ' + WEP_STUFE[kz[1]] + ', Erholung ' + WEP_STUFE[kz[2]] : '';
+        var st = kz.length === 3 ? 'Schutz ' + wepStufe(kz[0]) + ', Wohlfahrt ' + wepStufe(kz[1]) + ', Erholung ' + wepStufe(kz[2]) : '';
         var lf = { schutzfunktion: 'Schutz', wohlfahrtsfunktion: 'Wohlfahrt', erholungsfunktion: 'Erholung', nutzfunktion: 'Nutzung' }[fn.toLowerCase()] || fn;
         return { t: (lf ? 'Leitfunktion ' + lf : 'Funktionsfläche') + (kz ? ' (Wertziffer ' + kz + (st ? ': ' + st : '') + ')' : '') + (p.ext_BFI ? ', ' + tx(p.ext_BFI) + (p.ext_Gen_Jahr ? ' ' + p.ext_Gen_Jahr : '') : ''), href: safeUrl(p.descriptionreference_href) };
       });
@@ -1796,7 +1807,7 @@
       if (!l || !l[1]) return;
       if (v.t || i) td.appendChild(document.createTextNode(' · '));
       var a = document.createElement('a'); a.textContent = l[0]; a.href = l[1];
-      if (!/^(mailto|tel):/.test(l[1])) { a.target = '_blank'; a.rel = 'noopener'; }
+      if (!/^(mailto|tel):/.test(l[1])) { a.target = '_blank'; a.rel = 'noopener noreferrer'; }
       td.appendChild(a);
     });
   }
@@ -1805,7 +1816,7 @@
   }
   function addLink(box, text, href, ghost) {
     var a = document.createElement('a'); a.className = 'btn' + (ghost ? ' ghost' : ''); a.textContent = text;
-    a.href = href; a.target = '_blank'; a.rel = 'noopener'; box.appendChild(a);
+    a.href = href; a.target = '_blank'; a.rel = 'noopener noreferrer'; box.appendChild(a);
   }
   var cur = null, curToken = 0, letterAuto = '';
   map.on('click', function (e) { showPoint(e); });
@@ -2041,6 +2052,12 @@
           if (w.web && webHref(w.web) && !(th && th.web)) a.push(['Gemeinde-Webseite', webHref(w.web)]);
           return { t: w.mayor ? w.mayor + (w.since ? ' (seit ' + w.since + ')' : '') + ', laut Wikidata, bitte auf der Gemeinde-Webseite prüfen' : 'nicht in Wikidata eingetragen', a: a };
         }, box);
+        if (!bz && landOf(cur.gkz)) {
+          late('Bezirkshauptmannschaft', gi.wd, function (w) {
+            if (!w || !w.bez) return 'nicht in Wikidata (in Statutarstädten ist der Magistrat zuständig)';
+            return { t: 'BH ' + w.bez.replace(/^Bezirk\s+/, ''), a: [w.bezweb && webHref(w.bezweb) ? ['Webseite', webHref(w.bezweb)] : null] };
+          }, box);
+        }
         if (bz && !bz.wien) {
           late('Bezirkshauptmannschaft', gi.wd, function (w) {
             var n = (w && w.bez ? w.bez.replace(/^Bezirk\s+/, '') : bz.name);
@@ -2069,8 +2086,10 @@
         if (!list.length) return 'keine Funktionsfläche an dieser Stelle';
         return { t: list.map(function (x) { return x.t; }).join('; '), a: list.filter(function (x) { return x.href; }).slice(0, 2).map(function (x, i) { return [list.length > 1 ? 'Bericht ' + (i + 1) : 'Bericht zur Fläche', x.href]; }) };
       }, box);
-      late('Schutz- oder Bannwald', Promise.all([wmsHit(SW_WMS, 'Bannwald', cur.lng, cur.lat, sig).catch(function () { return null; }), wmsHit(SW_WMS, 'Hinweiskarte Schutzwald', cur.lng, cur.lat, sig)]), function (v) {
-        return v[0] ? 'Bannwald: Nutzung stark eingeschränkt' : v[1] ? 'Schutzwald laut Hinweiskarte: Nutzung eingeschränkt' : 'nein';
+      late('Schutz- oder Bannwald', Promise.all([wmsHit(SW_WMS, 'Bannwald', cur.lng, cur.lat, sig).catch(function () { return null; }), wmsHit(SW_WMS, 'Hinweiskarte Schutzwald', cur.lng, cur.lat, sig).catch(function () { return null; })]), function (v) {
+        if (v[0] == null && v[1] == null) return 'nicht abrufbar';
+        return v[0] ? 'Bannwald: Nutzung stark eingeschränkt' : v[1] ? 'Schutzwald laut Hinweiskarte: Nutzung eingeschränkt' :
+          'nein' + (v[0] == null ? ' (Bannwald nicht abrufbar)' : v[1] == null ? ' (Schutzwald-Hinweiskarte nicht abrufbar)' : '');
       }, box);
     });
     // Gesuchte Straße zusätzlich als Linie hervorheben
@@ -2081,11 +2100,12 @@
     addLink(box, 'Google Maps', 'https://www.google.com/maps/search/?api=1&query=' + lat + ',' + lng, true);
     addLink(box, 'BEV-Kataster', 'https://kataster.bev.gv.at/#/center/' + lng + ',' + lat + '/zoom/18', true);
     addLink(box, 'Wayback-App', 'https://livingatlas.arcgis.com/wayback/#mapCenter=' + lng + '%2C' + lat + '%2C17', true);
-    addLink(box, 'Widmung: NÖ Atlas', 'https://atlas.noe.gv.at/', true);
+    var land = landOf(cur.gkz);
+    if (land) addLink(box, 'Widmung: ' + land.gis, land.gisUrl, true);
     addLink(box, 'Bodenkarte eBOD', 'https://bodenkarte.at/', true);
     addLink(box, 'Grundwasser: eHYD', 'https://ehyd.gv.at/', true);
     addLink(box, 'Versteigerungen: Ediktsdatei', 'https://edikte.justiz.gv.at/', true);
-    if (insObj && insObj.url) addLink(box, 'Inserat öffnen', insObj.url);
+    if (insObj && safeUrl(insObj.url)) addLink(box, 'Inserat öffnen', safeUrl(insObj.url));
     insSearchLinks();
     wr.qs.slice(0, 2).forEach(function (q) { addLink(box, 'Zeitplan: ' + q.t, 'https://www.google.com/search?q=' + encodeURIComponent(q.q), true); });
     $('pt-empty').hidden = true; $('pt-body').hidden = false;
@@ -2207,10 +2227,12 @@
     setTimeout(function () { b.textContent = 'Merken'; }, 2500);
   });
   // Nummern als Text ausgeben, sonst macht Excel aus "01704" 1704 und aus "12/3" ein Datum
+  // Text, der mit = + - @ oder Tab beginnt, würde Excel als Formel ausführen: mit Apostroph als Text markieren
+  function noFormula(v) { var s = v == null ? '' : String(v); return /^[=+\-@\t\r]/.test(s) ? "'" + s : s; }
   function asText(v) { return v ? '="' + String(v).replace(/"/g, '') + '"' : ''; }
   function merkRows() {
     var rows = [['Katastralgemeinde', 'KG-Nummer', 'Grundstück', 'Einlagezahl', 'Adresse', 'Gemeinde', 'Nutzung', 'Widmung (Wien)', 'Kultur', 'Bio', 'Status', 'Notiz', 'Koordinaten', 'Gemerkt am', 'Google Maps']];
-    merk.forEach(function (o) { rows.push([o.kg, asText(o.kgnr), asText(o.gnr), asText(o.ez), o.adresse || '', o.gemeinde, o.nutzung, o.widmung || '', o.kultur, o.bio, o.status, o.note, o.lat + ', ' + o.lng, o.ts, 'https://www.google.com/maps/search/?api=1&query=' + o.lat + ',' + o.lng]); });
+    merk.forEach(function (o) { rows.push([noFormula(o.kg), asText(o.kgnr), asText(o.gnr), asText(o.ez), noFormula(o.adresse), noFormula(o.gemeinde), noFormula(o.nutzung), noFormula(o.widmung), noFormula(o.kultur), noFormula(o.bio), noFormula(o.status), noFormula(o.note), o.lat + ', ' + o.lng, o.ts, 'https://www.google.com/maps/search/?api=1&query=' + o.lat + ',' + o.lng]); });
     return rows;
   }
   function merkCsv() {
@@ -2263,7 +2285,8 @@
         map.flyTo({ center: [o.lng, o.lat], zoom: Math.max(map.getZoom(), 16) }); if (isMobile()) setPanel(false);
       });
       row.appendChild(show);
-      if (o.url) { var a = document.createElement('a'); a.className = 'btn ghost'; a.textContent = 'Inserat öffnen'; a.href = o.url; a.target = '_blank'; a.rel = 'noopener'; row.appendChild(a); }
+      var oUrl = safeUrl(o.url);
+      if (oUrl) { var a = document.createElement('a'); a.className = 'btn ghost'; a.textContent = 'Inserat öffnen'; a.href = oUrl; a.target = '_blank'; a.rel = 'noopener noreferrer'; row.appendChild(a); }
       var del = document.createElement('button'); del.type = 'button'; del.className = 'ghost'; del.textContent = 'Löschen';
       del.addEventListener('click', function () {
         if (del.dataset.sure) { if (insEdit === o.id) { $('ins-form').hidden = true; insFormMode(null); } ins.splice(idx, 1); insSave(); insRender(); }
@@ -2330,14 +2353,14 @@
   });
   function insRows() {
     var rows = [['Art', 'Was', 'Preis', 'Gemeinde', 'Adresse', 'Status', 'Notiz', 'Link', 'Koordinaten', 'Eingetragen am', 'Google Maps']];
-    ins.forEach(function (o) { rows.push([o.kind, o.title, o.price, o.gemeinde, o.adresse, o.status, o.note, o.url, o.lat + ', ' + o.lng, o.ts, 'https://www.google.com/maps/search/?api=1&query=' + o.lat + ',' + o.lng]); });
+    ins.forEach(function (o) { rows.push([noFormula(o.kind), noFormula(o.title), noFormula(o.price), noFormula(o.gemeinde), noFormula(o.adresse), noFormula(o.status), noFormula(o.note), noFormula(safeUrl(o.url)), o.lat + ', ' + o.lng, o.ts, 'https://www.google.com/maps/search/?api=1&query=' + o.lat + ',' + o.lng]); });
     return rows;
   }
   $('ins-csv').addEventListener('click', function () {
     if (!ins.length) { $('ins-status').textContent = 'Noch keine Inserate eingetragen.'; return; }
     var q = function (v) { return '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"'; };
     try {
-      var url = URL.createObjectURL(new Blob(['﻿' + insRows().map(function (r) { return r.map(q).join(';'); }).join('\r\n')], { type: 'text/csv;charset=utf-8' }));
+      var url = URL.createObjectURL(new Blob(['\ufeff' + insRows().map(function (r) { return r.map(q).join(';'); }).join('\r\n')], { type: 'text/csv;charset=utf-8' }));
       var a = document.createElement('a'); a.href = url; a.download = 'inserate-pacht-miete.csv'; document.body.appendChild(a); a.click(); a.remove();
       setTimeout(function () { URL.revokeObjectURL(url); }, 5000);
       $('ins-status').textContent = 'Datei inserate-pacht-miete.csv gespeichert.';
@@ -2352,8 +2375,9 @@
   function insSearchLinks() {
     var box = $('pt-search-links'); box.textContent = '';
     var bz = cur.gkz ? bezOf(cur.gkz) : null, ort = cur.gemeinde || (bz && bz.name) || '';
-    var wh = 'https://www.willhaben.at/iad/immobilien/', area = bz ? bz.wh + '/' : 'niederoesterreich/';
-    addLink(box, 'willhaben: Haus mieten' + (bz ? ' (' + (bz.wien ? 'Wien' : 'Bezirk ' + bz.name) + ')' : ''), wh + 'haus-mieten/' + area, true);
+    var land = cur.gkz ? landOf(cur.gkz) : null;
+    var wh = 'https://www.willhaben.at/iad/immobilien/', area = bz ? bz.wh + '/' : land ? land.wh + '/' : '';
+    addLink(box, 'willhaben: Haus mieten' + (bz ? ' (' + (bz.wien ? 'Wien' : 'Bezirk ' + bz.name) + ')' : land ? ' (' + land.name + ')' : ' (ganz Österreich)'), wh + 'haus-mieten/' + area, true);
     addLink(box, 'willhaben: Grund, Stichwort Pacht', wh + 'grundstuecke/' + area + '?keyword=pacht', true);
     addLink(box, 'landwirt.com: Pacht und Vermietung', 'https://www.landwirt.com/kleinanzeigen/pacht-vermietung', true);
     if (ort) {
