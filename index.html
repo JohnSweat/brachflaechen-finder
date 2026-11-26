@@ -52,6 +52,11 @@
   table.kv td:first-child { color: var(--muted); width: 38%; }
   table.kv tr.kvh th { text-align: left; font-size: 11.5px; text-transform: uppercase; letter-spacing: .05em; color: var(--accent); padding: 10px 4px 3px; }
   table.kv td a { color: var(--accent); }
+  table.kv button.sec { all: unset; box-sizing: border-box; cursor: pointer; display: flex; align-items: baseline; gap: 8px; width: 100%; }
+  table.kv button.sec::before { content: '▸'; color: var(--muted); width: 10px; flex: none; }
+  table.kv button.sec[aria-expanded=true]::before { content: '▾'; }
+  table.kv button.sec:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 3px; }
+  table.kv .sec-hint { margin-left: auto; text-transform: none; letter-spacing: 0; font-weight: 400; color: var(--muted); font-size: 12px; }
   .search { display: flex; gap: 6px; } .search input { flex: 1; min-width: 0; } .search button { flex: none; }
   .grid2 { grid-template-columns: 1fr 1fr; }
   textarea { font: inherit; font-size: 13.5px; width: 100%; padding: 8px; border: 1px solid var(--line); border-radius: 7px; margin-top: 8px; }
@@ -113,6 +118,7 @@
   .zpd table.kv { font-size: 12.5px; }
   .tag.i { background: #ffe1c2; color: #8a4a00; }
   #ins-form { border: 1px dashed var(--accent); border-radius: 8px; padding: 8px; margin: 6px 0; }
+  .backup { margin-top: 10px; border-top: 1px solid var(--line); padding-top: 4px; }
   #pt-search .links { margin-top: 4px; }
   @media (max-width: 760px) {
     #app { display: block; height: 100vh; height: 100dvh; }
@@ -127,6 +133,7 @@
     .links .btn { font-size: 15px; padding: 9px 13px; }
     #zoomhint { top: 12px; max-width: 72vw; text-align: center; }
     details.grp > summary { min-height: 46px; }
+    table.kv button.sec { min-height: 38px; align-items: center; }
     .sheet-open #toggle { left: auto; right: 10px; transform: none; bottom: calc(62vh + 10px); bottom: calc(62dvh + 10px); padding: 8px 16px; font-size: 14px; }
   }
 </style>
@@ -146,9 +153,9 @@
           <li><b>Hinzoomen:</b> Ab Zoom 14 erscheinen die Grundstücksgrenzen, ab Zoom 16 die Nummern. Unter „Karte“ schaltest du dazu, was du brauchst.</li>
           <li><b>Verwilderung erkennen:</b> Bei „Luftbilder früher“ ein altes Bild einschalten und mit „Alt ↔ Neu“ vergleichen. Wo früher Beete waren und heute Gebüsch ist, kümmert sich niemand mehr.</li>
           <li><b>Bewirtschaftung prüfen:</b> Außerhalb des Orts „Landwirtschaft“ dazuschalten. Ist eine Wiese nicht mehr für Förderungen gemeldet, nutzt sie vermutlich niemand.</li>
-          <li><b>Lage prüfen:</b> Beim angeklickten Punkt stehen Adresse, Grundstück, Hochwasser, Öffis und Wald in der Nähe, in Wien auch die Widmung. Street View zeigt Zaun, Zufahrt und Briefkasten.</li>
+          <li><b>Lage prüfen:</b> Beim angeklickten Punkt stehen Adresse, Grundstück und Hochwasser, in Wien auch die Widmung. Boden und Klima, Gemeinde und Ämter sowie Öffis und Wald klappst du bei Bedarf auf; was offen bleibt, lädt beim nächsten Punkt von selbst. Street View zeigt Zaun, Zufahrt und Briefkasten.</li>
           <li><b>Eigentümer finden:</b> Mit Katastralgemeinde und Einlagezahl bekommst du beim Bezirksgericht oder online einen Grundbuchauszug mit dem Eigentümer. Die Brief-Vorlage setzt alle Daten zum Grundstück ein.</li>
-          <li><b>Merken:</b> Gute Funde kommen in die Merkliste; sie lässt sich als Tabelle für Excel speichern.</li>
+          <li><b>Merken:</b> Gute Funde kommen in die Merkliste; sie lässt sich als Tabelle für Excel speichern und mit „Sicherung speichern“ samt Inseraten auf ein anderes Gerät mitnehmen.</li>
           <li><b>Automatisch suchen:</b> „Kandidaten im Ausschnitt“ listet verwilderte und nicht mehr gemeldete Flächen im sichtbaren Kartenausschnitt.</li>
         </ol>
         <details class="sub">
@@ -182,6 +189,7 @@
 
     <form id="qf" class="search"><input type="search" id="q" placeholder="Ort oder Adresse suchen" aria-label="Ort oder Adresse suchen" enterkeyhint="search"><button type="submit">Suchen</button></form>
     <div id="results"></div>
+    <input type="file" id="bk-file" accept="application/json,.json" hidden>
 
     <h2>Angeklickter Punkt</h2>
     <div class="card" id="point">
@@ -218,6 +226,14 @@
           <button type="button" class="ghost" id="merk-copy">Tabelle kopieren</button>
         </div>
         <p class="hint" id="merk-status"></p>
+        <div class="backup">
+          <p class="sub-h">Sicherung von Merkliste und Inseraten</p>
+          <div class="links" style="margin-top:4px">
+            <button type="button" class="ghost" data-bk="save">Sicherung speichern</button>
+            <button type="button" class="ghost" data-bk="load">Sicherung laden</button>
+          </div>
+          <p class="hint" data-bk="status">Alles liegt nur in diesem Browser. Löscht du die Browserdaten oder wechselst das Gerät, ist es weg. Die Sicherung ist eine Datei, die du aufheben und auf einem anderen Gerät wieder laden kannst. Beim Laden kommt nur dazu, was noch fehlt.</p>
+        </div>
       </div>
     </details>
 
@@ -247,6 +263,14 @@
           <button type="button" class="ghost" id="ins-copy">Tabelle kopieren</button>
         </div>
         <p class="hint" id="ins-status"></p>
+        <div class="backup">
+          <p class="sub-h">Sicherung von Merkliste und Inseraten</p>
+          <div class="links" style="margin-top:4px">
+            <button type="button" class="ghost" data-bk="save">Sicherung speichern</button>
+            <button type="button" class="ghost" data-bk="load">Sicherung laden</button>
+          </div>
+          <p class="hint" data-bk="status">Eine Datei mit Merkliste und Inseraten, zum Aufheben oder für ein anderes Gerät.</p>
+        </div>
         <p class="note">Inserate erscheinen nicht automatisch: willhaben und die anderen Börsen bieten keine offene Schnittstelle, und das automatische Auslesen verbieten ihre Nutzungsbedingungen. Für Leerstand gibt es in Niederösterreich keine offene Gesamtliste; manche Gemeinden und Regionen führen eigene Börsen, die Suche beim Punkt findet sie.</p>
       </div>
     </details>
@@ -962,14 +986,24 @@
     if (key === 'kataster') return true;
     return false;
   }
-  function paintDots() {
+  // Höchstens einmal je Bildaufbau zeichnen: Beim Laden kommen pro Sekunde Dutzende Kachel-Meldungen
+  // (als Funktionsdeklarationen, damit sie wie bisher überall schon vor dieser Stelle aufrufbar sind)
+  function soon(key, fn) {
+    var q = soon.q || (soon.q = {});
+    if (q[key]) return; q[key] = true;
+    (window.requestAnimationFrame || function (f) { return setTimeout(f, 16); })(function () { q[key] = false; fn(); });
+  }
+  function paintDots() { soon('dots', paintDotsNow); }
+  function wPaint() { soon('w', wPaintNow); }
+  var dotEl = {};
+  function paintDotsNow() {
     Object.keys(DOT_SOURCES).forEach(function (key) {
-      var el = document.querySelector('[data-dot="' + key + '"]');
+      var el = dotEl[key] || (dotEl[key] = document.querySelector('[data-dot="' + key + '"]'));
       var ok = 0, err = 0;
       DOT_SOURCES[key].forEach(function (s) { if (stat[s]) { ok += stat[s].ok; err += stat[s].err; } });
       var cls = 'dot';
       if (isOn(key)) cls += err && !ok ? ' err' : err && ok ? ' mix' : ok ? ' ok' : ' load';
-      el.className = cls;
+      if (el.className !== cls) el.className = cls;
       el.title = ok + ' Kacheln geladen, ' + err + ' Fehler';
     });
   }
@@ -1176,12 +1210,24 @@
     return fetchT(wfsUrl(t, cql, bb, max), 45000).then(json).then(function (j) { return j.features || []; }).catch(function (e) {
       if (bb) throw e;
       return fetchT(WFS + t + '&propertyName=OBJECTID' + (cql ? '&CQL_FILTER=' + encodeURIComponent(cql) : ''), 30000).then(json).then(function (j) {
-        var ids = (j.features || []).map(function (f) { return f.properties && f.properties.OBJECTID; }).filter(function (v) { return v != null; }).slice(0, 60);
+        var ids = (j.features || []).map(function (f) { return f.properties && Number(f.properties.OBJECTID); }).filter(function (v) { return isFinite(v); }).slice(0, 400);
         if (!ids.length) throw e;
-        return Promise.all(ids.map(function (id) {
-          return fetchT(wfsUrl(t, (cql ? cql + ' AND ' : '') + 'OBJECTID=' + Number(id), null, 1), 30000).then(json)
-            .then(function (k) { return k.features || []; }).catch(function () { return []; });
-        })).then(function (parts) { var all = [].concat.apply([], parts); if (!all.length) throw e; return all; });
+        // In Paketen zu 20 holen, höchstens 4 gleichzeitig; scheitert ein Paket, dessen Objekte einzeln nacheinander holen
+        var get = function (list) {
+          var f = (cql ? cql + ' AND ' : '') + (list.length === 1 ? 'OBJECTID=' + list[0] : 'OBJECTID IN (' + list.join(',') + ')');
+          return fetchT(wfsUrl(t, f, null, list.length), 30000).then(json).then(function (k) { return k.features || []; });
+        };
+        var batches = [];
+        for (var i = 0; i < ids.length; i += 20) batches.push(ids.slice(i, i + 20));
+        return pool(batches.map(function (bt) {
+          return function () {
+            return get(bt).catch(function () {
+              if (bt.length === 1) return [];
+              return pool(bt.map(function (id) { return function () { return get([id]).catch(function () { return []; }); }; }), 1)
+                .then(function (parts) { return [].concat.apply([], parts); });
+            });
+          };
+        }), 4).then(function (parts) { var all = [].concat.apply([], parts); if (!all.length) throw e; return all; });
       });
     });
   }
@@ -1224,10 +1270,11 @@
     s.state = 'load'; wPaint();
     wFetch(s).then(function (fc) { wSet(key, fc); }).catch(function () { s.state = 'err'; wPaint(); });
   }
-  function wPaint() {
+  var cntEl = {}, grpEls = null;
+  function wPaintNow() {
     var z = map.getZoom();
     Object.keys(WT).forEach(function (id) {
-      var el = document.querySelector('[data-cnt="' + id + '"]'); if (!el) return;
+      var el = id in cntEl ? cntEl[id] : (cntEl[id] = document.querySelector('[data-cnt="' + id + '"]')); if (!el) return;
       var t = WT[id], txt = '', cls = 'cnt';
       if ($(id).checked) {
         var sts = t.src.map(function (k) { var s = WS[k]; return s.view && z < s.view && s.state !== 'err' ? 'zoom' : s.state; });
@@ -1240,11 +1287,13 @@
           txt = String(n).replace(/\B(?=(\d{3})+(?!\d))/g, '.') + (capped ? '+' : '');
         }
       }
-      el.textContent = txt; el.className = cls;
+      if (el.textContent !== txt) el.textContent = txt;
+      if (el.className !== cls) el.className = cls;
     });
-    Array.prototype.forEach.call(document.querySelectorAll('details.grp'), function (d) {
-      var n = d.querySelectorAll('input[type=checkbox]:checked').length, g = d.querySelector('.gcount');
-      if (g) g.textContent = n ? n + ' an' : '';
+    if (!grpEls) grpEls = Array.prototype.map.call(document.querySelectorAll('details.grp'), function (d) { return { d: d, g: d.querySelector('.gcount') }; }).filter(function (x) { return x.g; });
+    grpEls.forEach(function (x) {
+      var n = x.d.querySelectorAll('input[type=checkbox]:checked').length, t = n ? n + ' an' : '';
+      if (x.g.textContent !== t) x.g.textContent = t;
     });
   }
   Object.keys(WT).forEach(function (id) {
@@ -1370,8 +1419,8 @@
     }
   }
   // Haltestellen im Umkreis von 500 m, nächste zuerst, gleiche Namen zusammengefasst
-  function nearStops(lng, lat) {
-    return fetchT(wfsUrl('OEFFHALTESTOGD', '', grow([lng, lat, lng, lat], 550), 500), 20000).then(json).then(function (j) {
+  function nearStops(lng, lat, sig) {
+    return fetchT(wfsUrl('OEFFHALTESTOGD', '', grow([lng, lat, lng, lat], 550), 500), 20000, sig).then(json).then(function (j) {
       var by = {};
       (j.features || []).forEach(function (f) {
         var p = f.properties || {}, c = f.geometry && f.geometry.coordinates; if (!c) return;
@@ -1388,9 +1437,9 @@
     });
   }
   // Widmung am Punkt aus der generalisierten Flächenwidmung
-  function widmungAt(lng, lat) {
+  function widmungAt(lng, lat, sig) {
     var e = 0.00003;
-    return fetchT(wfsUrl('GENFLWIDMUNGOGD', '', [lng - e, lat - e, lng + e, lat + e], 20), 20000).then(json).then(function (j) {
+    return fetchT(wfsUrl('GENFLWIDMUNGOGD', '', [lng - e, lat - e, lng + e, lat + e], 20), 20000, sig).then(json).then(function (j) {
       var fs = j.features || [], hit = null;
       fs.forEach(function (f) { if (!hit && f.geometry && inPoly([lng, lat], f.geometry)) hit = f; });
       if (!hit) hit = fs[0];
@@ -1445,18 +1494,68 @@
   function fmtA(a) { return Math.round(a).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.') + ' m²'; }
   function num(id) { var v = parseFloat(String($(id).value).replace(',', '.')); return isFinite(v) && v > 0 ? v : null; }
 
-  // Abruf mit Zeitlimit, damit nichts endlos hängt
-  function fetchT(url, ms) {
+  // Abruf mit Zeitlimit, damit nichts endlos hängt. sig (optional): bricht ab, sobald z. B. ein neuer Punkt angeklickt wird
+  function fetchT(url, ms, sig) {
     var ac = window.AbortController ? new AbortController() : null;
+    if (sig && sig.aborted) return Promise.reject(abortErr());
     var t = ac ? setTimeout(function () { ac.abort(); }, ms || 15000) : null;
-    return fetch(url, ac ? { signal: ac.signal } : {}).then(function (r) { if (t) clearTimeout(t); return r; }, function (e) { if (t) clearTimeout(t); throw e; });
+    var onAbort = function () { if (ac) ac.abort(); };
+    if (sig && ac) sig.addEventListener('abort', onAbort);
+    var end = function () { if (t) clearTimeout(t); if (sig && ac) sig.removeEventListener('abort', onAbort); };
+    return fetch(url, ac ? { signal: ac.signal } : {}).then(function (r) { end(); return r; }, function (e) { end(); throw e; });
+  }
+  function abortErr() { var e = new Error('abgebrochen'); e.name = 'AbortError'; return e; }
+  function isAbort(e) { return !!e && e.name === 'AbortError'; }
+  // Warten, das bei Abbruch sofort endet
+  function sleep(ms, sig) {
+    return new Promise(function (res, rej) {
+      if (sig && sig.aborted) { rej(abortErr()); return; }
+      var t = setTimeout(function () { if (sig) sig.removeEventListener('abort', ab); res(); }, ms);
+      var ab = function () { clearTimeout(t); rej(abortErr()); };
+      if (sig) sig.addEventListener('abort', ab);
+    });
+  }
+  // Höchstens n Abrufe gleichzeitig: fns sind Funktionen, die je ein Promise liefern
+  function pool(fns, n) {
+    var out = new Array(fns.length), i = 0;
+    var next = function () { if (i >= fns.length) return Promise.resolve(); var k = i++; return fns[k]().then(function (v) { out[k] = v; return next(); }); };
+    var w = []; for (var j = 0; j < Math.min(n, fns.length); j++) w.push(next());
+    return Promise.all(w).then(function () { return out; });
+  }
+  // Zwischenspeicher mit Obergrenze: Die am längsten nicht gebrauchten Einträge fliegen zuerst raus
+  function Lru(max) { this.m = new Map(); this.max = max; }
+  Lru.prototype.get = function (k) { var v = this.m.get(k); if (v !== undefined) { this.m.delete(k); this.m.set(k, v); } return v; };
+  Lru.prototype.set = function (k, v) { this.m.delete(k); this.m.set(k, v); while (this.m.size > this.max) this.m.delete(this.m.keys().next().value); };
+  Lru.prototype.del = function (k, v) { if (v === undefined || this.m.get(k) === v) this.m.delete(k); };
+  // Gemeinsamer Abruf für alle, die dasselbe brauchen: Er wird erst abgebrochen, wenn alle Interessenten abgebrochen haben.
+  // Ohne sig (z. B. Kandidatensuche) läuft er sicher zu Ende. Fehlschläge werden nicht gespeichert.
+  function shared(cache, key, sig, make) {
+    // Schon abgebrochen (z. B. während osmInit() noch lief): gar nicht erst abrufen
+    if (sig && sig.aborted) return Promise.reject(abortErr());
+    var e = cache.get(key);
+    if (!e) {
+      var ac = window.AbortController ? new AbortController() : null;
+      e = { users: 0, ac: ac, done: false };
+      e.p = make(ac ? ac.signal : null);
+      e.p.then(function () { e.done = true; }, function () { cache.del(key, e); });
+      cache.set(key, e);
+    }
+    if (!sig) e.users = Infinity;
+    else if (!e.done) {
+      e.users++;
+      sig.addEventListener('abort', function () {
+        if (--e.users > 0 || e.done) return;
+        cache.del(key, e); if (e.ac) e.ac.abort();
+      });
+    }
+    return e.p;
   }
 
   // WMS-Bild holen und als Pixel lesen: so lässt sich prüfen, ob an einer Stelle etwas gezeichnet ist
-  function wmsPixels(base, layer, bbox, w, h) {
+  function wmsPixels(base, layer, bbox, w, h, sig) {
     var url = base + '?service=WMS&version=1.3.0&request=GetMap&layers=' + encodeURIComponent(layer) +
       '&styles=&format=image%2Fpng&transparent=true&crs=EPSG%3A3857&width=' + w + '&height=' + h + '&bbox=' + bbox.join(',');
-    return fetchT(url, 20000).then(function (r) { if (!r.ok) throw new Error('WMS ' + r.status); return r.blob(); })
+    return fetchT(url, 20000, sig).then(function (r) { if (!r.ok) throw new Error('WMS ' + r.status); return r.blob(); })
       .then(function (b) { return createImageBitmap(b); })
       .then(function (bmp) {
         var cv = document.createElement('canvas'); cv.width = w; cv.height = h;
@@ -1464,10 +1563,10 @@
         finally { if (bmp.close) bmp.close(); }
       });
   }
-  function wmsHit(base, layer, lng, lat) {
+  function wmsHit(base, layer, lng, lat, sig) {
     // 4 x 4 Meter um den Punkt prüfen; größer würde am Feldrand schon das Nachbarfeld erfassen
     var c = merc(lng, lat), r = 2;
-    return wmsPixels(base, layer, [c[0] - r, c[1] - r, c[0] + r, c[1] + r], 8, 8).then(function (img) {
+    return wmsPixels(base, layer, [c[0] - r, c[1] - r, c[0] + r, c[1] + r], 8, 8, sig).then(function (img) {
       for (var i = 3; i < img.data.length; i += 4) if (img.data[i] > 0) return true;
       return false;
     });
@@ -1475,43 +1574,40 @@
 
   // ---------- OpenStreetMap-Kacheln (OpenFreeMap): Bahnhöfe, Bushaltestellen, Wald ----------
   // Die Kacheln liegen auf einem schnellen Verteilnetz; sie werden einzeln geholt und im Browser ausgelesen.
-  var OSM = { ready: null, tpl: null, VT: null, Pbf: null, tiles: {} };
+  // Höchstens 300 Kacheln im Speicher; ältere werden bei Bedarf neu geholt
+  var OSM = { ready: null, tpl: null, VT: null, Pbf: null, tiles: new Lru(300) };
   function osmInit() {
     if (OSM.ready) return OSM.ready;
     OSM.ready = Promise.all([
       fetchT('https://tiles.openfreemap.org/planet', 10000).then(function (r) { if (!r.ok) throw new Error('TileJSON ' + r.status); return r.json(); }),
-      import('https://cdn.jsdelivr.net/npm/@mapbox/vector-tile@2.0.4/+esm'),
-      import('https://cdn.jsdelivr.net/npm/pbf@4.0.1/+esm')
+      vtLib()
     ]).then(function (res) {
-      OSM.tpl = res[0].tiles[0]; OSM.VT = res[1].VectorTile; OSM.Pbf = res[2].default || res[2].Pbf;
+      OSM.tpl = res[0].tiles[0]; OSM.VT = res[1].VT; OSM.Pbf = res[1].Pbf;
     });
     OSM.ready.catch(function () { OSM.ready = null; });
     return OSM.ready;
   }
-  function osmTile(z, x, y) {
-    var k = z + '/' + x + '/' + y;
-    if (!OSM.tiles[k]) {
-      OSM.tiles[k] = fetchT(OSM.tpl.replace('{z}', z).replace('{x}', x).replace('{y}', y), 15000)
+  function osmTile(z, x, y, sig) {
+    return shared(OSM.tiles, z + '/' + x + '/' + y, sig, function (s) {
+      return fetchT(OSM.tpl.replace('{z}', z).replace('{x}', x).replace('{y}', y), 15000, s)
         .then(function (r) { if (r.status === 204 || r.status === 404) return null; if (!r.ok) throw new Error('OSM ' + r.status); return r.arrayBuffer(); })
         .then(function (buf) { return buf ? new OSM.VT(new OSM.Pbf(buf)) : null; });
-      OSM.tiles[k].catch(function () { delete OSM.tiles[k]; });
-    }
-    return OSM.tiles[k];
+    });
   }
   function lon2x(lng, z) { return Math.floor((lng + 180) / 360 * Math.pow(2, z)); }
   function lat2y(lat, z) { var r = lat * RAD; return Math.floor((1 - Math.log(Math.tan(r) + 1 / Math.cos(r)) / Math.PI) / 2 * Math.pow(2, z)); }
   // Rechteck [West, Süd, Ost, Nord] um m Meter vergrößern
   function grow(bb, m) { var dLat = m / 110574, dLng = m / (111320 * Math.cos((bb[1] + bb[3]) / 2 * RAD)); return [bb[0] - dLng, bb[1] - dLat, bb[2] + dLng, bb[3] + dLat]; }
-  function osmCollect(bb, z, layerName, keep) {
+  function osmCollect(bb, z, layerName, keep, sig) {
     return osmInit().then(function () {
       var x0 = lon2x(bb[0], z), x1 = lon2x(bb[2], z), y0 = lat2y(bb[3], z), y1 = lat2y(bb[1], z), jobs = [];
       if ((x1 - x0 + 1) * (y1 - y0 + 1) > 64) throw new Error('Bereich zu groß');
-      for (var x = x0; x <= x1; x++) for (var y = y0; y <= y1; y++) jobs.push(osmTileFeatures(z, x, y, layerName, keep));
+      for (var x = x0; x <= x1; x++) for (var y = y0; y <= y1; y++) jobs.push(osmTileFeatures(z, x, y, layerName, keep, sig));
       return Promise.all(jobs).then(function (parts) { return [].concat.apply([], parts); });
     });
   }
-  function osmTileFeatures(z, x, y, layerName, keep) {
-    return osmTile(z, x, y).then(function (vt) {
+  function osmTileFeatures(z, x, y, layerName, keep, sig) {
+    return osmTile(z, x, y, sig).then(function (vt) {
       var out = [], L = vt && vt.layers[layerName];
       if (!L) return out;
       for (var i = 0; i < L.length; i++) { var f = L.feature(i); if (keep(f.properties)) out.push(f.toGeoJSON(x, y, z)); }
@@ -1519,11 +1615,11 @@
     });
   }
   // Bahnhöfe stehen ab Zoomstufe 12 in den Kacheln, Bushaltestellen und Wald in voller Genauigkeit erst in Stufe 14
-  function osmData(bb, railR, busR, waldR) {
+  function osmData(bb, railR, busR, waldR, sig) {
     return Promise.all([
-      osmCollect(grow(bb, railR), 12, 'poi', function (p) { return p.class === 'railway'; }),
-      osmCollect(grow(bb, busR), 14, 'poi', function (p) { return p.class === 'bus'; }),
-      osmCollect(grow(bb, waldR), 14, 'landcover', function (p) { return p.class === 'wood'; })
+      osmCollect(grow(bb, railR), 12, 'poi', function (p) { return p.class === 'railway'; }, sig),
+      osmCollect(grow(bb, busR), 14, 'poi', function (p) { return p.class === 'bus'; }, sig),
+      osmCollect(grow(bb, waldR), 14, 'landcover', function (p) { return p.class === 'wood'; }, sig)
     ]).then(function (r) { return { rail: r[0], bus: r[1], wald: r[2] }; });
   }
   function nearestPt(feats, pt) {
@@ -1577,9 +1673,9 @@
     }
     return VT_LIB;
   }
-  function bodenAt(lng, lat) {
+  function bodenAt(lng, lat, sig) {
     var z = 15, x = lon2x(lng, z), y = lat2y(lat, z), pt = [lng, lat];
-    return Promise.all([vtLib(), fetchT(BODEN_TILES.replace('{z}', z).replace('{x}', x).replace('{y}', y), 15000)]).then(function (r) {
+    return Promise.all([vtLib(), fetchT(BODEN_TILES.replace('{z}', z).replace('{x}', x).replace('{y}', y), 15000, sig)]).then(function (r) {
       var lib = r[0], res = r[1];
       if (res.status === 204 || res.status === 404) return null;
       if (!res.ok) throw new Error('Boden ' + res.status);
@@ -1599,12 +1695,12 @@
   }
   function bodenNone(v) { return v && v.sonst ? 'nicht kartiert: ' + v.sonst : 'nicht kartiert'; }
   // Klima der letzten zehn vollen Jahre (Open-Meteo, Reanalyse ERA5), je Gegend nur einmal abfragen
-  var climaCache = {};
-  function climaAt(lng, lat) {
+  var climaCache = new Lru(40);
+  function climaAt(lng, lat, sig) {
     var k = (Math.round(lng * 20) / 20) + ',' + (Math.round(lat * 20) / 20);
-    if (!climaCache[k]) {
+    return shared(climaCache, k, sig, function (s) {
       var y1 = new Date().getFullYear() - 1, y0 = y1 - 9;
-      climaCache[k] = fetchT('https://archive-api.open-meteo.com/v1/archive?latitude=' + lat.toFixed(3) + '&longitude=' + lng.toFixed(3) + '&start_date=' + y0 + '-01-01&end_date=' + y1 + '-12-31&daily=shortwave_radiation_sum,precipitation_sum,temperature_2m_min,temperature_2m_mean&timezone=Europe%2FVienna', 25000).then(json).then(function (j) {
+      return fetchT('https://archive-api.open-meteo.com/v1/archive?latitude=' + lat.toFixed(3) + '&longitude=' + lng.toFixed(3) + '&start_date=' + y0 + '-01-01&end_date=' + y1 + '-12-31&daily=shortwave_radiation_sum,precipitation_sum,temperature_2m_min,temperature_2m_mean&timezone=Europe%2FVienna', 25000, s).then(json).then(function (j) {
         var d = j && j.daily; if (!d || !d.time || !d.time.length) throw new Error('keine Klimadaten');
         var n = 0, rad = 0, pr = 0, tm = 0, frost = 0, last = {};
         d.time.forEach(function (t, i) {
@@ -1618,18 +1714,16 @@
         return { y0: y0, y1: y1, kwh: rad / 3.6 / yrs, mm: pr / yrs, temp: n ? tm / n : null, frost: frost / yrs,
           lastMed: lf.length ? lf[Math.floor(lf.length / 2)] : '', lastMax: lf.length ? lf[lf.length - 1] : '', elev: j.elevation };
       });
-      climaCache[k].catch(function () { delete climaCache[k]; });
-    }
-    return climaCache[k];
+    });
   }
   var MON = ['Jänner', 'Februar', 'März', 'April', 'Mai', 'Juni'];
   function mmdd(s) { return s ? Number(s.slice(3, 5)) + '. ' + MON[Number(s.slice(0, 2)) - 1] : ''; }
   function rund(v, st) { return String(Math.round(v / st) * st).replace(/\B(?=(\d{3})+(?!\d))/g, '.'); }
   // Nächste Grundwasser-Messstelle: Der Kartendienst sucht nur nahe am Klickpunkt. Daher erst das Kartenbild
   // im Umkreis holen, die gezeichneten Symbole finden und die nächsten davon einzeln abfragen.
-  function gwNear(lng, lat) {
+  function gwNear(lng, lat, sig) {
     var c = merc(lng, lat), r = 6000 / Math.cos(lat * RAD), W = 240, bb = [c[0] - r, c[1] - r, c[0] + r, c[1] + r];
-    return wmsPixels(GW_WMS, GW_LAYER, bb, W, W).then(function (img) {
+    return wmsPixels(GW_WMS, GW_LAYER, bb, W, W, sig).then(function (img) {
       var cells = {}, C = 6;
       for (var y = 0; y < W; y++) for (var x = 0; x < W; x++) if (img.data[(y * W + x) * 4 + 3] > 0) {
         var k = Math.floor(x / C) + ',' + Math.floor(y / C), o = cells[k] || (cells[k] = { x: 0, y: 0, n: 0 }); o.x += x; o.y += y; o.n++;
@@ -1639,8 +1733,9 @@
       return Promise.all(cand.map(function (p) {
         var url = GW_WMS + '?service=WMS&version=1.3.0&request=GetFeatureInfo&layers=' + GW_LAYER + '&query_layers=' + GW_LAYER + '&styles=&crs=EPSG:3857&bbox=' + bb.join(',') +
           '&width=' + W + '&height=' + W + '&i=' + Math.round(p.x) + '&j=' + Math.round(p.y) + '&info_format=application%2Fjson&feature_count=10&buffer=8';
-        return fetchT(url, 20000).then(json).then(function (j) { return j.features || []; }).catch(function () { return []; });
+        return fetchT(url, 20000, sig).then(json).then(function (j) { return j.features || []; }).catch(function () { return []; });
       })).then(function (parts) {
+        if (sig && sig.aborted) throw abortErr();
         var best = null;
         [].concat.apply([], parts).forEach(function (f) {
           var g = f.geometry && f.geometry.coordinates; if (!g) return;
@@ -1655,11 +1750,11 @@
   // Waldentwicklungsplan am Punkt: Funktionsflächen mit Leitfunktion und Wertziffer (Schutz, Wohlfahrt, Erholung)
   var WEP_STUFE = { 0: 'keine besondere', 1: 'gering', 2: 'mittel', 3: 'hoch' };
   function wepStufe(d) { return WEP_STUFE[d] || 'unbekannt (' + d + ')'; }
-  function wepAt(lng, lat) {
+  function wepAt(lng, lat, sig) {
     var c = merc(lng, lat), r = 2, bb = [c[0] - r, c[1] - r, c[0] + r, c[1] + r];
     var url = WEP_WMS + '?service=WMS&version=1.3.0&request=GetFeatureInfo&layers=' + encodeURIComponent(WEP_LAYER) + '&query_layers=' + encodeURIComponent(WEP_LAYER) +
       '&styles=&crs=EPSG:3857&bbox=' + bb.join(',') + '&width=5&height=5&i=2&j=2&info_format=application%2Fjson&feature_count=5';
-    return fetchT(url, 20000).then(json).then(function (j) {
+    return fetchT(url, 20000, sig).then(json).then(function (j) {
       var fs = (j.features || []).filter(function (f) { return !f.geometry || inPoly(c, f.geometry); });
       return fs.map(function (f) {
         var p = f.properties || {}, kz = String(p.ext_Wert_Kz || ''), fn = tx(p.existinglanduseobject_specificlanduse_title) || tx(p.description).replace(/^\d+:\s*/, '').replace(/\s*\d{3}\s*\|.*$/, '');
@@ -1726,7 +1821,7 @@
   var cur = null, curToken = 0, letterAuto = '';
   map.on('click', function (e) { showPoint(e); });
   // Adresse: aus der Suche oder die nächstgelegene über OpenStreetMap (Nominatim), je Punkt nur eine Anfrage
-  var adrCache = {};
+  var adrCache = new Lru(200);
   function adrText(a) {
     if (!a) return '';
     var str = a.road || a.pedestrian || a.footway || a.path || a.cycleway || a.square || a.place || '';
@@ -1734,36 +1829,34 @@
     var l2 = ((a.postcode || '') + ' ' + (a.city || a.town || a.village || a.municipality || a.hamlet || '')).trim();
     return [l1, l2].filter(Boolean).join(', ');
   }
-  function reverseAdr(lng, lat) {
-    var k = lng.toFixed(5) + ',' + lat.toFixed(5);
-    if (!adrCache[k]) {
-      adrCache[k] = nomFetch('https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=18&addressdetails=1&accept-language=de&lat=' + lat + '&lon=' + lng, 15000).then(json).then(function (j) {
+  function reverseAdr(lng, lat, sig) {
+    return shared(adrCache, lng.toFixed(5) + ',' + lat.toFixed(5), sig, function (s) {
+      return nomFetch('https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=18&addressdetails=1&accept-language=de&lat=' + lat + '&lon=' + lng, 15000, s).then(json).then(function (j) {
         var t = adrText(j && j.address);
         return t ? { text: t, d: j.lat ? hav([lng, lat], [Number(j.lon), Number(j.lat)]) : 0, nr: !!(j.address && j.address.house_number) } : null;
       });
-      adrCache[k].catch(function () { delete adrCache[k]; });
-    }
-    return adrCache[k];
+    });
   }
-  // Nominatim erlaubt höchstens eine Anfrage pro Sekunde: alle Abrufe laufen über diese Warteschlange
+  // Nominatim erlaubt höchstens eine Anfrage pro Sekunde: alle Abrufe laufen über diese Warteschlange.
+  // Abgebrochene Aufträge (alter Klick, alte Suche) werden übersprungen und halten die Schlange nicht auf.
   var nomLast = Promise.resolve(), nomT = 0;
-  function nomFetch(url, ms) {
+  function nomFetch(url, ms, sig) {
     var p = nomLast.then(function () {
-      var wait = Math.max(0, nomT + 1100 - Date.now());
-      return new Promise(function (r) { setTimeout(r, wait); }).then(function () { nomT = Date.now(); return fetchT(url, ms); });
+      if (sig && sig.aborted) throw abortErr();
+      return sleep(Math.max(0, nomT + 1100 - Date.now()), sig).then(function () { nomT = Date.now(); return fetchT(url, ms, sig); });
     });
     nomLast = p.catch(function () {});
     return p;
   }
   // Gemeinde: Bürgermeister, Webseite und Bezirk aus Wikidata (über die Gemeindekennziffer), Gemeindeamt aus OpenStreetMap
-  var gemCache = {};
-  function wdGemeinde(gkz) {
+  var gemWd = new Lru(50), gemTh = new Lru(50);
+  function wdGemeinde(gkz, sig) {
     var q = 'SELECT ?g ?gLabel ?web ?email ?phone ?mayorLabel ?start ?bezLabel ?bezweb WHERE { ?g wdt:P964 "' + String(gkz).replace(/\D/g, '') + '" . ' +
       'OPTIONAL { ?g wdt:P856 ?web } OPTIONAL { ?g wdt:P968 ?email } OPTIONAL { ?g wdt:P1329 ?phone } ' +
       'OPTIONAL { ?g p:P6 ?st . ?st ps:P6 ?mayor . OPTIONAL { ?st pq:P580 ?start } FILTER NOT EXISTS { ?st pq:P582 ?end } } ' +
       'OPTIONAL { ?g wdt:P131 ?bez . ?bez wdt:P31 wd:Q871419 . OPTIONAL { ?bez wdt:P856 ?bezweb } } ' +
       'SERVICE wikibase:label { bd:serviceParam wikibase:language "de,en". } }';
-    return fetchT('https://query.wikidata.org/sparql?format=json&query=' + encodeURIComponent(q), 20000).then(json).then(function (j) {
+    return fetchT('https://query.wikidata.org/sparql?format=json&query=' + encodeURIComponent(q), 20000, sig).then(json).then(function (j) {
       var b = (j.results && j.results.bindings) || [], v = function (r, k) { return r[k] ? r[k].value : ''; };
       if (!b.length) return null;
       b.sort(function (x, y) { return v(y, 'start') < v(x, 'start') ? -1 : 1; });
@@ -1772,10 +1865,10 @@
         mayor: /^Q\d+$/.test(v(r, 'mayorLabel')) ? '' : v(r, 'mayorLabel'), since: v(r, 'start').slice(0, 4), bez: v(r, 'bezLabel'), bezweb: v(r, 'bezweb'), qid: v(r, 'g').split('/').pop() };
     });
   }
-  function townhall(name, lng, lat) {
+  function townhall(name, lng, lat, sig) {
     var vb = [lng - 0.2, lat + 0.13, lng + 0.2, lat - 0.13].map(function (x) { return x.toFixed(3); }).join(',');
     return nomFetch('https://nominatim.openstreetmap.org/search?format=jsonv2&extratags=1&addressdetails=1&limit=8&countrycodes=at&accept-language=de&bounded=1&viewbox=' + vb +
-      '&q=' + encodeURIComponent('Rathaus in ' + name), 15000).then(json).then(function (list) {
+      '&q=' + encodeURIComponent('Rathaus in ' + name), 15000, sig).then(json).then(function (list) {
       var norm = function (v) { return String(v || '').toLowerCase().replace(/[^a-zäöüß]/g, ''); }, want = norm(name);
       var score = function (x) {
         var t = x.extratags || {}, nm = x.name || x.display_name || '', a = x.address || {};
@@ -1792,40 +1885,43 @@
         phone: t.phone || t['contact:phone'] || '', email: t.email || t['contact:email'] || '', web: t.website || t['contact:website'] || '', hours: t.opening_hours || '' };
     });
   }
-  function gemInfo(gkz, name, lng, lat) {
-    if (!gemCache[gkz]) {
-      gemCache[gkz] = { wd: wdGemeinde(gkz), th: name ? townhall(name, lng, lat) : Promise.resolve(null) };
-      gemCache[gkz].wd.catch(function () { delete gemCache[gkz]; });
-      gemCache[gkz].th.catch(function () { if (gemCache[gkz]) gemCache[gkz].th = null; });
-    }
-    if (!gemCache[gkz].th) gemCache[gkz].th = name ? townhall(name, lng, lat) : Promise.resolve(null);
-    return gemCache[gkz];
+  // Je Gemeinde nur einmal fragen; was scheitert, wird beim nächsten Klick neu versucht
+  function gemInfo(gkz, name, lng, lat, sig) {
+    return {
+      wd: shared(gemWd, gkz, sig, function (s) { return wdGemeinde(gkz, s); }),
+      th: name ? shared(gemTh, gkz, sig, function (s) { return townhall(name, lng, lat, s); }) : Promise.resolve(null)
+    };
   }
   function telHref(p) { return 'tel:' + String(p).replace(/[^\d+]/g, ''); }
   function webHref(u) { return safeUrl(u); }
 
   // Einmal wiederholen, wenn ein Server kurz hakt
-  function retry(fn) { return fn().catch(function () { return new Promise(function (r) { setTimeout(r, 1200); }).then(fn); }); }
+  function retry(fn, sig) { return fn().catch(function (e) { if (isAbort(e) || (sig && sig.aborted)) throw e; return sleep(1200, sig).then(fn); }); }
 
+  // Ein Abbruch-Signal je angeklicktem Punkt: Beim nächsten Klick werden alle offenen Abrufe des alten Punkts gestoppt
+  var ptAC = null;
   function showPoint(e, opt) {
     opt = opt || {};
     var lat = e.lngLat.lat.toFixed(6), lng = e.lngLat.lng.toFixed(6);
     var token = ++curToken;
+    if (ptAC) ptAC.abort();
+    ptAC = window.AbortController ? new AbortController() : null;
+    var sig = ptAC ? ptAC.signal : null;
     cur = { lat: Number(lat), lng: Number(lng), gnr: '', ez: '', kgnr: '', kg: '', gemeinde: '', gkz: '', nutzung: '', kultur: '', bio: '', widmung: '', adresse: '', adresseNah: false };
-    $('ins-form').hidden = true;
+    $('ins-form').hidden = true; insFormMode(null);
     $('letter-box').hidden = true; letterAuto = '';
     marker.setLngLat(e.lngLat).addTo(map);
     var tbl = $('pt-table'); tbl.textContent = '';
     // Nachgeladene Angaben: Zeile mit "…", die sich füllt, sobald die Antwort da ist
-    var late = function (label, promise, fmt) {
+    var late = function (label, promise, fmt, box) {
       var tr = document.createElement('tr'), a = document.createElement('td'), b = document.createElement('td');
-      a.textContent = label; b.textContent = '…'; tr.appendChild(a); tr.appendChild(b); tbl.appendChild(tr);
+      a.textContent = label; b.textContent = '…'; tr.appendChild(a); tr.appendChild(b); (box || tbl).appendChild(tr);
       promise.then(function (v) { if (token === curToken) { setCell(b, fmt(v)); refreshLetter(); } }, function () { if (token === curToken) b.textContent = 'nicht abrufbar'; });
     };
     addRow(tbl, 'Koordinaten', lat + ', ' + lng);
     if (opt.adresse) { cur.adresse = opt.adresse; addRow(tbl, 'Adresse', opt.adresse); }
     else {
-      late('Adresse', reverseAdr(cur.lng, cur.lat), function (v) {
+      late('Adresse', reverseAdr(cur.lng, cur.lat, sig), function (v) {
         if (!v) return 'keine gefunden';
         cur.adresse = v.text; cur.adresseNah = v.d > 25 || !v.nr;
         return v.text + (v.d > 25 ? ' (nächste Adresse, ' + fmtM(v.d) + ' entfernt)' : !v.nr ? ' (ohne Hausnummer)' : '');
@@ -1876,100 +1972,125 @@
     }
     var wr = wienRows(e.point);
     wr.rows.forEach(function (r) { addRow(tbl, r[0], r[1]); });
-    // Nachgeladene Angaben: INVEKOS, Hochwasser, Widmung, Haltestellen, Wald
+    // Sofort nachgeladen, weil für die Entscheidung wichtig: INVEKOS, Hochwasser, Widmung in Wien
     var pt = [cur.lng, cur.lat];
     var ivNow = $('iv-select').value, ivNowLbl = $('iv-select').selectedOptions[0] ? $('iv-select').selectedOptions[0].textContent : '', ivPrev = prevIvLayer();
-    late('INVEKOS gemeldet', Promise.all([wmsHit(IV_WMS, ivNow, cur.lng, cur.lat), ivPrev ? wmsHit(IV_WMS, ivPrev.value, cur.lng, cur.lat).catch(function () { return null; }) : null]), function (v) {
+    late('INVEKOS gemeldet', Promise.all([wmsHit(IV_WMS, ivNow, cur.lng, cur.lat, sig), ivPrev ? wmsHit(IV_WMS, ivPrev.value, cur.lng, cur.lat, sig).catch(function () { return null; }) : null]), function (v) {
       return v[0] ? 'ja (' + ivNowLbl + ')' : v[1] ? 'nein, ' + ivPrev.label + ' noch gemeldet' : 'nein';
     });
-    late('Im HQ100-Bereich', wmsHit(HQ_WMS, HQ_LAYER, cur.lng, cur.lat), function (v) { return v ? 'ja, Überflutungsfläche' : 'nein'; });
-    // Boden, Klima, Grundwasser
-    addHead(tbl, 'Boden, Klima, Wasser');
-    var bd = bodenAt(cur.lng, cur.lat);
-    late('Boden (eBOD)', bd, function (v) {
-      if (!v || !v.b) return bodenNone(v);
-      var b = v.b; cur.boden = [BODENTYP[b.bodentyp] || b.bodentyp, bodenLbl('bodenart', b.bodenart)].filter(Boolean).join(', ');
-      return cur.boden;
-    });
-    late('Eignung laut Bodenkarte', bd, function (v) {
-      if (!v || !v.b) return '–';
-      var a = bodenLbl('ackerwert', v.b.ackerwert), g = bodenLbl('gruenlandwert', v.b.gruenlandwert);
-      return [a ? 'Acker ' + a : '', g ? 'Grünland ' + g : ''].filter(Boolean).join(' · ') || 'nicht bewertet';
-    });
-    late('Wasser im Boden', bd, function (v) {
-      if (!v || !v.b) return '–';
-      return [bodenLbl('wasserverhaeltnisse', v.b.wasserverhaeltnisse), bodenLbl('nutzbare_feldkapazitaet', v.b.nutzbare_feldkapazitaet) ? 'Speicher ' + bodenLbl('nutzbare_feldkapazitaet', v.b.nutzbare_feldkapazitaet) : '', bodenLbl('gruendigkeit', v.b.gruendigkeit)].filter(Boolean).join(' · ');
-    });
-    late('Kalk und Säure', bd, function (v) { return v && v.b ? [BODEN_KALK[v.b.kalkgehalt], BODEN_PH[v.b.bodenreaktion]].filter(Boolean).join(' · ') || '–' : '–'; });
-    var cl = climaAt(cur.lng, cur.lat);
-    late('Sonne', cl, function (c) { return rund(c.kwh, 10) + ' kWh/m² Einstrahlung im Jahr (Mittel ' + c.y0 + '–' + c.y1 + ')'; });
-    late('Temperatur und Regen', cl, function (c) { return (c.temp != null ? 'Jahresmittel ' + c.temp.toFixed(1).replace('.', ',') + ' °C · ' : '') + rund(c.mm, 10) + ' mm Niederschlag im Jahr'; });
-    late('Frost', cl, function (c) { return Math.round(c.frost) + ' Frosttage im Jahr' + (c.lastMed ? '; letzter Frost im Frühling meist um den ' + mmdd(c.lastMed) + ', spätestens ' + mmdd(c.lastMax) : ''); });
-    late('Grundwasser-Messstelle', gwNear(cur.lng, cur.lat), function (g) {
-      if (!g || g.d > 6000) return 'keine im Umkreis von 6 km';
-      var p = g.p;
-      return [tx(p.MSTNAM02), fmtM(g.d) + ' entfernt', p.GOKMUA05 ? 'Gelände ' + fmtN(p.GOKMUA05) + ' m ü. A.' : '', tx(p.CODE04) ? 'Grundwasserkörper ' + tx(p.CODE04) : '', tx(p.DATERR07) ? 'misst seit ' + tx(p.DATERR07).slice(-4) : '', p.DATAUF08 ? 'aufgelassen' : ''].filter(Boolean).join(' · ');
-    });
+    late('Im HQ100-Bereich', wmsHit(HQ_WMS, HQ_LAYER, cur.lng, cur.lat, sig), function (v) { return v ? 'ja, Überflutungsfläche' : 'nein'; });
     if (cur.lng > 16.17 && cur.lng < 16.59 && cur.lat > 48.11 && cur.lat < 48.33) {
-      late('Widmung Wien (vereinfacht)', retry(function () { return widmungAt(cur.lng, cur.lat); }), function (v) { cur.widmung = v; return v || 'keine Widmungsfläche: meist Straße oder Gewässer, sonst außerhalb Wiens'; });
+      late('Widmung Wien (vereinfacht)', retry(function () { return widmungAt(cur.lng, cur.lat, sig); }, sig), function (v) { cur.widmung = v; return v || 'keine Widmungsfläche: meist Straße oder Gewässer, sonst außerhalb Wiens'; });
     }
-    if (cur.gkz) {
-      var bz = bezOf(cur.gkz), gi = gemInfo(cur.gkz, bz && bz.wien ? '' : cur.gemeinde, cur.lng, cur.lat);
-      addHead(tbl, 'Gemeinde und Ämter');
-      if (!(bz && bz.wien)) late('Gemeindeamt', gi.th, function (t) {
-        if (!t) return { t: 'nicht in OpenStreetMap gefunden', a: [['Websuche', 'https://www.google.com/search?q=' + encodeURIComponent('Gemeindeamt ' + (cur.gemeinde || '') + ' Öffnungszeiten')]] };
-        return { t: [t.name, t.adr, t.hours ? 'geöffnet ' + t.hours : ''].filter(Boolean).join(' · '), a: [t.phone ? [t.phone, telHref(t.phone)] : null, t.email ? [t.email, 'mailto:' + t.email] : null, t.web && webHref(t.web) ? ['Webseite', webHref(t.web)] : null] };
+    // Aufwendige Blöcke laden erst beim Aufklappen; offen gelassene Blöcke öffnen sich beim nächsten Punkt von selbst
+    var section = function (key, title, build) {
+      var head = document.createElement('tbody'), body = document.createElement('tbody');
+      var tr = document.createElement('tr'), th = document.createElement('th'), btn = document.createElement('button');
+      var t = document.createElement('span'), hint = document.createElement('span');
+      tr.className = 'kvh'; th.colSpan = 2; btn.type = 'button'; btn.className = 'sec'; t.className = 'sec-t'; hint.className = 'sec-hint';
+      t.textContent = title; btn.appendChild(t); btn.appendChild(hint); th.appendChild(btn); tr.appendChild(th); head.appendChild(tr);
+      tbl.appendChild(head); tbl.appendChild(body);
+      var built = false;
+      var set = function (open) {
+        if (open && !built) { built = true; build(body); }
+        body.hidden = !open; tr.dataset.loaded = built ? '1' : '0';
+        btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+        hint.textContent = open ? '' : built ? 'aufklappen' : 'antippen zum Laden';
+      };
+      btn.addEventListener('click', function () {
+        var open = body.hidden; set(open);
+        try { localStorage.setItem('brach-sec-' + key, open ? 'auf' : 'zu'); } catch (e) {}
       });
-      if (bz && bz.wien) late('Stadt Wien', gi.wd, function (w) {
-        if (!w) return 'nicht in Wikidata';
-        return { t: [w.name, w.mayor ? 'Bezirksvorstehung: ' + w.mayor + (w.since ? ' (seit ' + w.since + ')' : '') + ', laut Wikidata' : ''].filter(Boolean).join(' · '),
-          a: [w.web && webHref(w.web) ? ['Webseite des Bezirks', webHref(w.web)] : null, ['Magistratisches Bezirksamt', 'https://www.google.com/search?q=' + encodeURIComponent('Magistratisches Bezirksamt ' + w.name + ' Wien')]] };
-      });
-      else late('Bürgermeister/in', Promise.all([gi.wd, Promise.resolve(gi.th).catch(function () { return null; })]), function (r) {
-        var w = r[0], th = r[1];
-        if (!w) return 'nicht in Wikidata';
-        var a = [];
-        if (w.email && !(th && th.email)) a.push([w.email, 'mailto:' + w.email]);
-        if (w.web && webHref(w.web) && !(th && th.web)) a.push(['Gemeinde-Webseite', webHref(w.web)]);
-        return { t: w.mayor ? w.mayor + (w.since ? ' (seit ' + w.since + ')' : '') + ', laut Wikidata, bitte auf der Gemeinde-Webseite prüfen' : 'nicht in Wikidata eingetragen', a: a };
-      });
-      if (!bz && landOf(cur.gkz)) {
-        late('Bezirkshauptmannschaft', gi.wd, function (w) {
-          if (!w || !w.bez) return 'nicht in Wikidata (in Statutarstädten ist der Magistrat zuständig)';
-          return { t: 'BH ' + w.bez.replace(/^Bezirk\s+/, ''), a: [w.bezweb && webHref(w.bezweb) ? ['Webseite', webHref(w.bezweb)] : null] };
-        });
-      }
-      if (bz && !bz.wien) {
-        late('Bezirkshauptmannschaft', gi.wd, function (w) {
-          var n = (w && w.bez ? w.bez.replace(/^Bezirk\s+/, '') : bz.name);
-          return { t: 'BH ' + n, a: [w && w.bezweb && webHref(w.bezweb) ? ['Webseite', webHref(w.bezweb)] : ['Webseite', 'https://www.noe.gv.at/noe/Bezirkshauptmannschaften.html']] };
-        });
-        var gvTr = document.createElement('tr'), gvA = document.createElement('td'), gvB = document.createElement('td');
-        gvA.textContent = 'Grundverkehrsbehörde';
-        setCell(gvB, { t: 'bei der BH ' + bz.gv + '. Pacht von Acker, Wiese oder Wald über 2 ha braucht ihre Genehmigung, bis 2 ha nicht; Gärten und Bauland sind frei', a: [['Land NÖ: Grundverkehr', 'https://noe.gv.at/noe/Landwirtschaft/Rechtserwerb_an_land-_und_forstwirtschaftlichen_Liegensch.html']] });
-        gvTr.appendChild(gvA); gvTr.appendChild(gvB); tbl.appendChild(gvTr);
-      }
-      var lsTr = document.createElement('tr'), lsA = document.createElement('td'), lsB = document.createElement('td');
-      lsA.textContent = 'Leerstand';
-      setCell(lsB, { t: 'keine offene Liste; Gemeindeamt oder Region fragen', a: [['Websuche Leerstandsbörse', 'https://www.google.com/search?q=' + encodeURIComponent('"' + (cur.gemeinde || (bz && bz.name) || '') + '" Leerstand OR Leerstandsbörse OR Leerstandsmanagement')]] });
-      lsTr.appendChild(lsA); lsTr.appendChild(lsB); tbl.appendChild(lsTr);
-      addHead(tbl, 'Öffis und Wald');
-    }
-    if (cur.lng > 15.9 && cur.lng < 16.9 && cur.lat > 47.8 && cur.lat < 48.6) {
-      late('Öffi-Haltestellen bis 500 m', retry(function () { return nearStops(cur.lng, cur.lat); }), function (v) { return v; });
-    }
-    var od = osmData([cur.lng, cur.lat, cur.lng, cur.lat], 6000, 1500, 1500);
-    late('Nächster Bahnhof', od, function (d) { var n = nearestPt(d.rail, pt); return n && n.d <= 6000 ? fmtM(n.d) + (n.name ? ' · ' + n.name : '') : 'keiner im Umkreis von 6 km'; });
-    late('Nächste Bushaltestelle', od, function (d) { var n = nearestPt(d.bus, pt); return n && n.d <= 1500 ? fmtM(n.d) + (n.name ? ' · ' + n.name : '') : 'keine im Umkreis von 1,5 km'; });
-    late('Nächster Wald', od, function (d) { var w = distToPolys(pt, d.wald); return w === 0 ? 'liegt im Wald' : w < 10 ? 'direkt am Waldrand' : w <= 1500 ? fmtM(w) : 'keiner im Umkreis von 1,5 km'; });
-    late('Waldentwicklungsplan', wepAt(cur.lng, cur.lat), function (list) {
-      if (!list.length) return 'keine Funktionsfläche an dieser Stelle';
-      return { t: list.map(function (x) { return x.t; }).join('; '), a: list.filter(function (x) { return x.href; }).slice(0, 2).map(function (x, i) { return [list.length > 1 ? 'Bericht ' + (i + 1) : 'Bericht zur Fläche', x.href]; }) };
+      var saved = null; try { saved = localStorage.getItem('brach-sec-' + key); } catch (e) {}
+      set(saved === 'auf');
+    };
+    // Boden, Klima, Grundwasser
+    section('boden', 'Boden, Klima, Wasser', function (box) {
+      var bd = bodenAt(cur.lng, cur.lat, sig);
+      late('Boden (eBOD)', bd, function (v) {
+        if (!v || !v.b) return bodenNone(v);
+        var b = v.b; cur.boden = [BODENTYP[b.bodentyp] || b.bodentyp, bodenLbl('bodenart', b.bodenart)].filter(Boolean).join(', ');
+        return cur.boden;
+      }, box);
+      late('Eignung laut Bodenkarte', bd, function (v) {
+        if (!v || !v.b) return '–';
+        var a = bodenLbl('ackerwert', v.b.ackerwert), g = bodenLbl('gruenlandwert', v.b.gruenlandwert);
+        return [a ? 'Acker ' + a : '', g ? 'Grünland ' + g : ''].filter(Boolean).join(' · ') || 'nicht bewertet';
+      }, box);
+      late('Wasser im Boden', bd, function (v) {
+        if (!v || !v.b) return '–';
+        return [bodenLbl('wasserverhaeltnisse', v.b.wasserverhaeltnisse), bodenLbl('nutzbare_feldkapazitaet', v.b.nutzbare_feldkapazitaet) ? 'Speicher ' + bodenLbl('nutzbare_feldkapazitaet', v.b.nutzbare_feldkapazitaet) : '', bodenLbl('gruendigkeit', v.b.gruendigkeit)].filter(Boolean).join(' · ');
+      }, box);
+      late('Kalk und Säure', bd, function (v) { return v && v.b ? [BODEN_KALK[v.b.kalkgehalt], BODEN_PH[v.b.bodenreaktion]].filter(Boolean).join(' · ') || '–' : '–'; }, box);
+      var cl = climaAt(cur.lng, cur.lat, sig);
+      late('Sonne', cl, function (c) { return rund(c.kwh, 10) + ' kWh/m² Einstrahlung im Jahr (Mittel ' + c.y0 + '–' + c.y1 + ')'; }, box);
+      late('Temperatur und Regen', cl, function (c) { return (c.temp != null ? 'Jahresmittel ' + c.temp.toFixed(1).replace('.', ',') + ' °C · ' : '') + rund(c.mm, 10) + ' mm Niederschlag im Jahr'; }, box);
+      late('Frost', cl, function (c) { return Math.round(c.frost) + ' Frosttage im Jahr' + (c.lastMed ? '; letzter Frost im Frühling meist um den ' + mmdd(c.lastMed) + ', spätestens ' + mmdd(c.lastMax) : ''); }, box);
+      late('Grundwasser-Messstelle', gwNear(cur.lng, cur.lat, sig), function (g) {
+        if (!g || g.d > 6000) return 'keine im Umkreis von 6 km';
+        var p = g.p;
+        return [tx(p.MSTNAM02), fmtM(g.d) + ' entfernt', p.GOKMUA05 ? 'Gelände ' + fmtN(p.GOKMUA05) + ' m ü. A.' : '', tx(p.CODE04) ? 'Grundwasserkörper ' + tx(p.CODE04) : '', tx(p.DATERR07) ? 'misst seit ' + tx(p.DATERR07).slice(-4) : '', p.DATAUF08 ? 'aufgelassen' : ''].filter(Boolean).join(' · ');
+      }, box);
     });
-    late('Schutz- oder Bannwald', Promise.all([wmsHit(SW_WMS, 'Bannwald', cur.lng, cur.lat).catch(function () { return null; }), wmsHit(SW_WMS, 'Hinweiskarte Schutzwald', cur.lng, cur.lat).catch(function () { return null; })]), function (v) {
-      if (v[0] == null && v[1] == null) return 'nicht abrufbar';
-      return v[0] ? 'Bannwald: Nutzung stark eingeschränkt' : v[1] ? 'Schutzwald laut Hinweiskarte: Nutzung eingeschränkt' :
-        'nein' + (v[0] == null ? ' (Bannwald nicht abrufbar)' : v[1] == null ? ' (Schutzwald-Hinweiskarte nicht abrufbar)' : '');
+    if (cur.gkz) {
+      section('gemeinde', 'Gemeinde und Ämter', function (box) {
+        var bz = bezOf(cur.gkz), gi = gemInfo(cur.gkz, bz && bz.wien ? '' : cur.gemeinde, cur.lng, cur.lat, sig);
+        if (!(bz && bz.wien)) late('Gemeindeamt', gi.th, function (t) {
+          if (!t) return { t: 'nicht in OpenStreetMap gefunden', a: [['Websuche', 'https://www.google.com/search?q=' + encodeURIComponent('Gemeindeamt ' + (cur.gemeinde || '') + ' Öffnungszeiten')]] };
+          return { t: [t.name, t.adr, t.hours ? 'geöffnet ' + t.hours : ''].filter(Boolean).join(' · '), a: [t.phone ? [t.phone, telHref(t.phone)] : null, t.email ? [t.email, 'mailto:' + t.email] : null, t.web && webHref(t.web) ? ['Webseite', webHref(t.web)] : null] };
+        }, box);
+        if (bz && bz.wien) late('Stadt Wien', gi.wd, function (w) {
+          if (!w) return 'nicht in Wikidata';
+          return { t: [w.name, w.mayor ? 'Bezirksvorstehung: ' + w.mayor + (w.since ? ' (seit ' + w.since + ')' : '') + ', laut Wikidata' : ''].filter(Boolean).join(' · '),
+            a: [w.web && webHref(w.web) ? ['Webseite des Bezirks', webHref(w.web)] : null, ['Magistratisches Bezirksamt', 'https://www.google.com/search?q=' + encodeURIComponent('Magistratisches Bezirksamt ' + w.name + ' Wien')]] };
+        }, box);
+        else late('Bürgermeister/in', Promise.all([gi.wd, Promise.resolve(gi.th).catch(function () { return null; })]), function (r) {
+          var w = r[0], th = r[1];
+          if (!w) return 'nicht in Wikidata';
+          var a = [];
+          if (w.email && !(th && th.email)) a.push([w.email, 'mailto:' + w.email]);
+          if (w.web && webHref(w.web) && !(th && th.web)) a.push(['Gemeinde-Webseite', webHref(w.web)]);
+          return { t: w.mayor ? w.mayor + (w.since ? ' (seit ' + w.since + ')' : '') + ', laut Wikidata, bitte auf der Gemeinde-Webseite prüfen' : 'nicht in Wikidata eingetragen', a: a };
+        }, box);
+        if (!bz && landOf(cur.gkz)) {
+          late('Bezirkshauptmannschaft', gi.wd, function (w) {
+            if (!w || !w.bez) return 'nicht in Wikidata (in Statutarstädten ist der Magistrat zuständig)';
+            return { t: 'BH ' + w.bez.replace(/^Bezirk\s+/, ''), a: [w.bezweb && webHref(w.bezweb) ? ['Webseite', webHref(w.bezweb)] : null] };
+          }, box);
+        }
+        if (bz && !bz.wien) {
+          late('Bezirkshauptmannschaft', gi.wd, function (w) {
+            var n = (w && w.bez ? w.bez.replace(/^Bezirk\s+/, '') : bz.name);
+            return { t: 'BH ' + n, a: [w && w.bezweb && webHref(w.bezweb) ? ['Webseite', webHref(w.bezweb)] : ['Webseite', 'https://www.noe.gv.at/noe/Bezirkshauptmannschaften.html']] };
+          }, box);
+          var gvTr = document.createElement('tr'), gvA = document.createElement('td'), gvB = document.createElement('td');
+          gvA.textContent = 'Grundverkehrsbehörde';
+          setCell(gvB, { t: 'bei der BH ' + bz.gv + '. Pacht von Acker, Wiese oder Wald über 2 ha braucht ihre Genehmigung, bis 2 ha nicht; Gärten und Bauland sind frei', a: [['Land NÖ: Grundverkehr', 'https://noe.gv.at/noe/Landwirtschaft/Rechtserwerb_an_land-_und_forstwirtschaftlichen_Liegensch.html']] });
+          gvTr.appendChild(gvA); gvTr.appendChild(gvB); box.appendChild(gvTr);
+        }
+        var lsTr = document.createElement('tr'), lsA = document.createElement('td'), lsB = document.createElement('td');
+        lsA.textContent = 'Leerstand';
+        setCell(lsB, { t: 'keine offene Liste; Gemeindeamt oder Region fragen', a: [['Websuche Leerstandsbörse', 'https://www.google.com/search?q=' + encodeURIComponent('"' + (cur.gemeinde || (bz && bz.name) || '') + '" Leerstand OR Leerstandsbörse OR Leerstandsmanagement')]] });
+        lsTr.appendChild(lsA); lsTr.appendChild(lsB); box.appendChild(lsTr);
+      });
+    }
+    section('wald', 'Öffis und Wald', function (box) {
+      if (cur.lng > 15.9 && cur.lng < 16.9 && cur.lat > 47.8 && cur.lat < 48.6) {
+        late('Öffi-Haltestellen bis 500 m', retry(function () { return nearStops(cur.lng, cur.lat, sig); }, sig), function (v) { return v; }, box);
+      }
+      var od = osmData([cur.lng, cur.lat, cur.lng, cur.lat], 6000, 1500, 1500, sig);
+      late('Nächster Bahnhof', od, function (d) { var n = nearestPt(d.rail, pt); return n && n.d <= 6000 ? fmtM(n.d) + (n.name ? ' · ' + n.name : '') : 'keiner im Umkreis von 6 km'; }, box);
+      late('Nächste Bushaltestelle', od, function (d) { var n = nearestPt(d.bus, pt); return n && n.d <= 1500 ? fmtM(n.d) + (n.name ? ' · ' + n.name : '') : 'keine im Umkreis von 1,5 km'; }, box);
+      late('Nächster Wald', od, function (d) { var w = distToPolys(pt, d.wald); return w === 0 ? 'liegt im Wald' : w < 10 ? 'direkt am Waldrand' : w <= 1500 ? fmtM(w) : 'keiner im Umkreis von 1,5 km'; }, box);
+      late('Waldentwicklungsplan', wepAt(cur.lng, cur.lat, sig), function (list) {
+        if (!list.length) return 'keine Funktionsfläche an dieser Stelle';
+        return { t: list.map(function (x) { return x.t; }).join('; '), a: list.filter(function (x) { return x.href; }).slice(0, 2).map(function (x, i) { return [list.length > 1 ? 'Bericht ' + (i + 1) : 'Bericht zur Fläche', x.href]; }) };
+      }, box);
+      late('Schutz- oder Bannwald', Promise.all([wmsHit(SW_WMS, 'Bannwald', cur.lng, cur.lat, sig).catch(function () { return null; }), wmsHit(SW_WMS, 'Hinweiskarte Schutzwald', cur.lng, cur.lat, sig).catch(function () { return null; })]), function (v) {
+        if (v[0] == null && v[1] == null) return 'nicht abrufbar';
+        return v[0] ? 'Bannwald: Nutzung stark eingeschränkt' : v[1] ? 'Schutzwald laut Hinweiskarte: Nutzung eingeschränkt' :
+          'nein' + (v[0] == null ? ' (Bannwald nicht abrufbar)' : v[1] == null ? ' (Schutzwald-Hinweiskarte nicht abrufbar)' : '');
+      }, box);
     });
     // Gesuchte Straße zusätzlich als Linie hervorheben
     if (opt.geo && /LineString/.test(opt.geo.type)) sel.features.push({ type: 'Feature', geometry: opt.geo, properties: {} });
@@ -2002,7 +2123,10 @@
   function curText() {
     var lines = [];
     Array.prototype.forEach.call($('pt-table').rows, function (tr) {
-      if (tr.className === 'kvh') { lines.push('', '— ' + tr.textContent + ' —'); return; }
+      if (tr.className === 'kvh') {
+        if (tr.dataset.loaded === '0') return; // zugeklappt und nie geladen
+        var h = tr.querySelector('.sec-t'); lines.push('', '— ' + (h ? h.textContent : tr.textContent) + ' —'); return;
+      }
       var v = tr.cells[1] ? tr.cells[1].textContent : '';
       if (v && v !== '…') lines.push(tr.cells[0].textContent + ': ' + v);
     });
@@ -2165,13 +2289,33 @@
       if (oUrl) { var a = document.createElement('a'); a.className = 'btn ghost'; a.textContent = 'Inserat öffnen'; a.href = oUrl; a.target = '_blank'; a.rel = 'noopener noreferrer'; row.appendChild(a); }
       var del = document.createElement('button'); del.type = 'button'; del.className = 'ghost'; del.textContent = 'Löschen';
       del.addEventListener('click', function () {
-        if (del.dataset.sure) { ins.splice(idx, 1); insSave(); insRender(); }
+        if (del.dataset.sure) { if (insEdit === o.id) { $('ins-form').hidden = true; insFormMode(null); } ins.splice(idx, 1); insSave(); insRender(); }
         else { del.dataset.sure = '1'; del.textContent = 'Wirklich löschen?'; }
       });
       row.appendChild(del);
+      var edit = document.createElement('button'); edit.type = 'button'; edit.className = 'ghost'; edit.textContent = 'Bearbeiten';
+      edit.addEventListener('click', function () { insEditStart(o); });
+      row.insertBefore(edit, del);
       it.appendChild(t); it.appendChild(meta); it.appendChild(sel); it.appendChild(row); box.appendChild(it);
     });
     insMap();
+  }
+  // Gespeichertes Inserat im selben Formular ändern; der Ort bleibt, wo er war
+  var insEdit = null;
+  function insFormMode(o) {
+    insEdit = o ? o.id : null;
+    $('ins-save').textContent = o ? 'Änderungen speichern' : 'Speichern';
+  }
+  function insEditStart(o) {
+    insFormMode(o);
+    var k = $('ins-kind');
+    if (o.kind && !Array.prototype.some.call(k.options, function (op) { return op.value === o.kind; })) { var op = document.createElement('option'); op.textContent = o.kind; k.appendChild(op); }
+    $('ins-title').value = o.title || ''; $('ins-url').value = o.url || ''; $('ins-price').value = o.price || ''; $('ins-note').value = o.note || '';
+    k.value = o.kind || k.options[0].value;
+    $('ins-where').textContent = 'Ort: ' + [o.adresse, o.gemeinde, o.lat + ', ' + o.lng].filter(Boolean).join(' · ');
+    $('ins-status').textContent = '';
+    $('ins-form').hidden = false; $('ins-card').open = true;
+    $('ins-form').scrollIntoView({ block: 'nearest' }); $('ins-title').focus();
   }
   function insMap() {
     var src = null; try { src = map.getSource('ins'); } catch (e) {}
@@ -2181,16 +2325,26 @@
   }
   $('pt-ins').addEventListener('click', function () {
     if (!cur) return;
+    insFormMode(null);
     $('ins-title').value = ''; $('ins-url').value = ''; $('ins-price').value = ''; $('ins-note').value = '';
     $('ins-where').textContent = 'Ort: ' + [cur.adresse, cur.gemeinde, cur.lat + ', ' + cur.lng].filter(Boolean).join(' · ');
     $('ins-form').hidden = false; $('ins-card').open = true;
     $('ins-card').scrollIntoView({ block: 'start' }); $('ins-title').focus();
   });
-  $('ins-cancel').addEventListener('click', function () { $('ins-form').hidden = true; });
+  $('ins-cancel').addEventListener('click', function () { $('ins-form').hidden = true; insFormMode(null); });
   $('ins-save').addEventListener('click', function () {
-    if (!cur) return;
     var raw = $('ins-url').value.trim(), url = safeUrl(raw);
     if (raw && !url) { $('ins-status').textContent = 'Der Link sieht nicht wie eine Webadresse aus.'; return; }
+    var ed = insEdit ? insFind(insEdit) : null;
+    if (insEdit && !ed) { $('ins-form').hidden = true; insFormMode(null); $('ins-status').textContent = 'Das Inserat gibt es nicht mehr.'; return; }
+    if (ed) {
+      ed.title = $('ins-title').value.trim(); ed.url = url; ed.kind = $('ins-kind').value; ed.price = $('ins-price').value.trim(); ed.note = $('ins-note').value.trim();
+      var okE = insSave(); insRender(); insFormMode(null);
+      $('ins-form').hidden = true;
+      $('ins-status').textContent = okE ? 'Änderungen gespeichert.' : 'Geändert, aber nur bis zum Schließen der Seite (Speicher im Browser gesperrt).';
+      return;
+    }
+    if (!cur) return;
     var o = { id: Date.now().toString(36), lat: cur.lat, lng: cur.lng, title: $('ins-title').value.trim(), url: url, kind: $('ins-kind').value,
       price: $('ins-price').value.trim(), note: $('ins-note').value.trim(), gemeinde: cur.gemeinde || '', adresse: cur.adresse || '', status: 'neu', ts: new Date().toISOString().slice(0, 10) };
     ins.push(o); var ok = insSave(); insRender();
@@ -2231,6 +2385,67 @@
       addLink(box, 'Websuche: Leerstand in ' + ort, 'https://www.google.com/search?q=' + encodeURIComponent('"' + ort + '" Leerstand OR Leerstandsbörse OR Leerstandsmanagement'), true);
     }
   }
+
+  // ---------- Sicherung: Merkliste und Inserate als JSON-Datei speichern und wieder laden ----------
+  function bkStatus(btn, text) { var st = btn.closest('.backup').querySelector('[data-bk=status]'); if (st) st.textContent = text; }
+  var bkFrom = null;
+  function bkSave(btn) {
+    if (!merk.length && !ins.length) { bkStatus(btn, 'Merkliste und Inserate sind leer, es gibt nichts zu sichern.'); return; }
+    var day = new Date().toISOString().slice(0, 10), name = 'brachflaechen-sicherung-' + day + '.json';
+    var data = { app: 'brachflaechen-finder', version: 1, gespeichert: new Date().toISOString(), merkliste: merk, inserate: ins };
+    try {
+      var url = URL.createObjectURL(new Blob([JSON.stringify(data, null, 1)], { type: 'application/json' }));
+      var a = document.createElement('a'); a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(function () { URL.revokeObjectURL(url); }, 5000);
+      bkStatus(btn, 'Datei ' + name + ' gespeichert: ' + merk.length + ' gemerkte Grundstücke, ' + ins.length + ' Inserate.');
+    } catch (e) { bkStatus(btn, 'Speichern nicht möglich.'); }
+  }
+  // Nur bekannte Felder als Text übernehmen; Koordinaten müssen Zahlen sein, Links echte Webadressen
+  var MERK_F = ['gnr', 'ez', 'kgnr', 'kg', 'gemeinde', 'gkz', 'nutzung', 'kultur', 'bio', 'widmung', 'adresse', 'boden', 'status', 'note', 'ts'];
+  var INS_F = ['id', 'title', 'kind', 'price', 'note', 'gemeinde', 'adresse', 'status', 'ts'];
+  function bkClean(o, fields) {
+    if (!o || typeof o !== 'object') return null;
+    var lat = Number(o.lat), lng = Number(o.lng);
+    if (!isFinite(lat) || !isFinite(lng) || Math.abs(lat) > 90 || Math.abs(lng) > 180) return null;
+    var r = { lat: lat, lng: lng };
+    fields.forEach(function (f) { if (o[f] != null && typeof o[f] !== 'object') r[f] = String(o[f]).slice(0, 2000); });
+    return r;
+  }
+  function bkLoad(text, btn) {
+    var d; try { d = JSON.parse(text); } catch (e) { bkStatus(btn, 'Die Datei ist keine gültige Sicherung.'); return; }
+    if (!d || d.app !== 'brachflaechen-finder' || (!Array.isArray(d.merkliste) && !Array.isArray(d.inserate))) { bkStatus(btn, 'Die Datei ist keine Sicherung des Brachflächen-Finders.'); return; }
+    var nm = 0, dm = 0, ni = 0, di = 0;
+    (Array.isArray(d.merkliste) ? d.merkliste : []).forEach(function (raw) {
+      var o = bkClean(raw, MERK_F); if (!o) return;
+      if (o.adresseNah == null) o.adresseNah = raw.adresseNah === true;
+      var same = merk.some(function (m) { return o.gnr ? m.gnr === o.gnr && m.kgnr === o.kgnr : !m.gnr && m.lat === o.lat && m.lng === o.lng; });
+      if (same) { dm++; return; }
+      if (STATUS.indexOf(o.status) < 0) o.status = 'neu';
+      if (!o.ts) o.ts = new Date().toISOString().slice(0, 10);
+      merk.push(o); nm++;
+    });
+    (Array.isArray(d.inserate) ? d.inserate : []).forEach(function (raw) {
+      var o = bkClean(raw, INS_F); if (!o) return;
+      o.url = safeUrl(raw.url);
+      if (!o.id) o.id = (Date.now() + ni).toString(36);
+      if (insFind(o.id)) { di++; return; }
+      if (INS_STATUS.indexOf(o.status) < 0) o.status = 'neu';
+      if (!o.ts) o.ts = new Date().toISOString().slice(0, 10);
+      ins.push(o); ni++;
+    });
+    var okM = merkSave(), okI = insSave(), ok = okM && okI; merkRender(); insRender();
+    bkStatus(btn, 'Geladen: ' + nm + ' Grundstücke und ' + ni + ' Inserate neu' + (dm || di ? ', ' + (dm + di) + ' waren schon da' : '') + '.' + (ok ? '' : ' Achtung: Der Browser speichert nicht dauerhaft.'));
+  }
+  Array.prototype.forEach.call(document.querySelectorAll('button[data-bk=save]'), function (b) { b.addEventListener('click', function () { bkSave(b); }); });
+  Array.prototype.forEach.call(document.querySelectorAll('button[data-bk=load]'), function (b) { b.addEventListener('click', function () { bkFrom = b; $('bk-file').value = ''; $('bk-file').click(); }); });
+  $('bk-file').addEventListener('change', function () {
+    var f = this.files && this.files[0], btn = bkFrom; if (!f || !btn) return;
+    if (f.size > 5e6) { bkStatus(btn, 'Die Datei ist zu groß für eine Sicherung.'); return; }
+    var rd = new FileReader();
+    rd.onload = function () { bkLoad(String(rd.result || ''), btn); };
+    rd.onerror = function () { bkStatus(btn, 'Die Datei ließ sich nicht lesen.'); };
+    rd.readAsText(f);
+  });
 
   // ---------- Kandidaten im Ausschnitt ----------
   function candCollect(ns, minA, b) {
@@ -2339,7 +2554,7 @@
 
   // ---------- Ortssuche (Nominatim / OpenStreetMap): Adressen und Straßen werden markiert wie ein Klick ----------
   var GROSS = ['country', 'state', 'region', 'county', 'municipality', 'city', 'town', 'village', 'hamlet', 'suburb', 'city_district', 'district', 'borough', 'quarter', 'neighbourhood', 'postcode'];
-  var goTok = 0;
+  var goTok = 0, qAC = null;
   function goTo(it) {
     var ll = [Number(it.lon), Number(it.lat)], tok = ++goTok, done = false, mob = isMobile();
     var mark = GROSS.indexOf(it.addresstype || it.type || '') < 0;
@@ -2361,7 +2576,10 @@
     var q = $('q').value.trim(), box = $('results'); if (!q) return;
     $('q').blur();
     box.textContent = 'Suche…';
-    nomFetch('https://nominatim.openstreetmap.org/search?format=jsonv2&addressdetails=1&polygon_geojson=1&polygon_threshold=0.0001&limit=5&countrycodes=at&accept-language=de&q=' + encodeURIComponent(q), 15000)
+    // Eine neue Suche ersetzt die alte, auch wenn diese noch in der Warteschlange steht
+    if (qAC) qAC.abort();
+    var ac = qAC = window.AbortController ? new AbortController() : null;
+    nomFetch('https://nominatim.openstreetmap.org/search?format=jsonv2&addressdetails=1&polygon_geojson=1&polygon_threshold=0.0001&limit=5&countrycodes=at&accept-language=de&q=' + encodeURIComponent(q), 15000, ac && ac.signal)
       .then(json).then(function (list) {
         box.textContent = '';
         if (!list.length) { box.textContent = 'Nichts gefunden.'; return; }
@@ -2370,7 +2588,7 @@
           b.addEventListener('click', function () { box.textContent = ''; goTo(it); });
           box.appendChild(b);
         });
-      }).catch(function () { box.textContent = 'Suche nicht erreichbar.'; });
+      }).catch(function (e) { if (!isAbort(e) || !ac || !ac.signal.aborted) box.textContent = 'Suche nicht erreichbar.'; });
   });
 
   // ---------- Mobil: Panel ein/aus ----------
