@@ -1520,6 +1520,8 @@
   // Gemeinsamer Abruf für alle, die dasselbe brauchen: Er wird erst abgebrochen, wenn alle Interessenten abgebrochen haben.
   // Ohne sig (z. B. Kandidatensuche) läuft er sicher zu Ende. Fehlschläge werden nicht gespeichert.
   function shared(cache, key, sig, make) {
+    // Schon abgebrochen (z. B. während osmInit() noch lief): gar nicht erst abrufen
+    if (sig && sig.aborted) return Promise.reject(abortErr());
     var e = cache.get(key);
     if (!e) {
       var ac = window.AbortController ? new AbortController() : null;
@@ -1895,7 +1897,7 @@
     ptAC = window.AbortController ? new AbortController() : null;
     var sig = ptAC ? ptAC.signal : null;
     cur = { lat: Number(lat), lng: Number(lng), gnr: '', ez: '', kgnr: '', kg: '', gemeinde: '', gkz: '', nutzung: '', kultur: '', bio: '', widmung: '', adresse: '', adresseNah: false };
-    $('ins-form').hidden = true;
+    $('ins-form').hidden = true; insFormMode(null);
     $('letter-box').hidden = true; letterAuto = '';
     marker.setLngLat(e.lngLat).addTo(map);
     var tbl = $('pt-table'); tbl.textContent = '';
@@ -2264,7 +2266,7 @@
       if (o.url) { var a = document.createElement('a'); a.className = 'btn ghost'; a.textContent = 'Inserat öffnen'; a.href = o.url; a.target = '_blank'; a.rel = 'noopener'; row.appendChild(a); }
       var del = document.createElement('button'); del.type = 'button'; del.className = 'ghost'; del.textContent = 'Löschen';
       del.addEventListener('click', function () {
-        if (del.dataset.sure) { ins.splice(idx, 1); insSave(); insRender(); }
+        if (del.dataset.sure) { if (insEdit === o.id) { $('ins-form').hidden = true; insFormMode(null); } ins.splice(idx, 1); insSave(); insRender(); }
         else { del.dataset.sure = '1'; del.textContent = 'Wirklich löschen?'; }
       });
       row.appendChild(del);
@@ -2311,6 +2313,7 @@
     var raw = $('ins-url').value.trim(), url = safeUrl(raw);
     if (raw && !url) { $('ins-status').textContent = 'Der Link sieht nicht wie eine Webadresse aus.'; return; }
     var ed = insEdit ? insFind(insEdit) : null;
+    if (insEdit && !ed) { $('ins-form').hidden = true; insFormMode(null); $('ins-status').textContent = 'Das Inserat gibt es nicht mehr.'; return; }
     if (ed) {
       ed.title = $('ins-title').value.trim(); ed.url = url; ed.kind = $('ins-kind').value; ed.price = $('ins-price').value.trim(); ed.note = $('ins-note').value.trim();
       var okE = insSave(); insRender(); insFormMode(null);
