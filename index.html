@@ -71,8 +71,10 @@
   .tag.w { background: #f6efc4; color: #6a5a07; }
   .tag.b { background: #eadcff; color: #4c1d95; }
   .tag.n { background: #c62828; color: #fff; }
-  #copybox { position: fixed; inset: 0; z-index: 20; background: rgba(0,0,0,.45); display: grid; place-items: center; padding: 16px; }
-  #copybox[hidden] { display: none; }
+  #copybox { border: 0; padding: 0; background: transparent; color: inherit; max-width: calc(100vw - 32px); }
+  #copybox::backdrop { background: rgba(0,0,0,.45); }
+  #copybox:not([open]) { display: none; }
+  #copybox[open]:not(:modal) { position: fixed; inset: 0; margin: auto; z-index: 20; }
   #copybox .cb { background: var(--panel); border-radius: 12px; padding: 14px; width: min(520px, 100%); }
   #copybox p { margin: 0 0 8px; font-size: 14px; }
   #results { display: grid; gap: 4px; margin-top: 6px; }
@@ -142,7 +144,7 @@
 <div id="app">
   <aside id="panel">
     <h1>Brachflächen-Finder</h1>
-    <p class="sub">Verwilderte Grundstücke in Österreich am Bildschirm aufspüren: Luftbild, Kataster, Agrarförderung und Street View in einer Karte; in Wien auch Öffis, Widmung, Planungen und Energieanlagen. <span class="ver">Stand 24.11.2026</span></p>
+    <p class="sub">Verwilderte Grundstücke in Österreich am Bildschirm aufspüren: Luftbild, Kataster, Agrarförderung und Street View in einer Karte; in Wien auch Öffis, Widmung, Planungen und Energieanlagen. <span class="ver" id="ver">Stand 24.11.2026</span></p>
     <div class="warn" id="offline" hidden><b>Das ist eine gespeicherte Kopie der Seite.</b> Als Datei geöffnet fehlen Grundstücksdaten und Kopieren, und neue Funktionen kommen nicht an. Bitte die Seite über den Link öffnen und dort zum Startbildschirm hinzufügen.<br><a class="btn" href="https://johnsweat.github.io/brachflaechen-finder/">Aktuelle Seite öffnen</a></div>
 
     <details class="card grp" id="help" open>
@@ -509,8 +511,8 @@
     <div id="fatal"><div><strong>Die Kartenbibliothek konnte nicht geladen werden.</strong><br>Die Seite braucht eine Internetverbindung und muss direkt im Browser geöffnet sein, nicht in einer Vorschau.</div></div>
   </main>
 </div>
-<div id="copybox" hidden><div class="cb"><p>Automatisches Kopieren hat nicht geklappt. Der Text ist markiert, bitte von Hand kopieren:</p><textarea id="copy-ta" rows="7" readonly></textarea><div class="links"><button type="button" id="copy-close">Schließen</button></div></div></div>
-<button id="toggle" type="button">Menü</button>
+<dialog id="copybox" aria-labelledby="copy-h"><div class="cb"><p id="copy-h">Automatisches Kopieren hat nicht geklappt. Der Text ist markiert, bitte von Hand kopieren:</p><textarea id="copy-ta" rows="7" readonly></textarea><div class="links"><button type="button" id="copy-close">Schließen</button></div></div></dialog>
+<button id="toggle" type="button" aria-controls="panel" aria-expanded="false">Menü</button>
 
 <script>
 (function () {
@@ -518,6 +520,8 @@
   var $ = function (id) { return document.getElementById(id); };
   // Als Datei geöffnet (Download, Dateimanager am Handy): Hinweis auf die aktuelle Seite
   if (!/^https?:$/.test(location.protocol)) $('offline').hidden = false;
+  // Stand = letzte Veröffentlichung (Last-Modified von GitHub Pages)
+  (function () { var d = new Date(document.lastModified); if (location.protocol !== 'file:' && !isNaN(d) && Date.now() - d > 6e4) $('ver').textContent = 'Stand ' + d.getDate() + '.' + (d.getMonth() + 1) + '.' + d.getFullYear(); })();
   try { if (localStorage.getItem('brach-help') === 'zu') $('help').open = false; } catch (e) {}
   $('help').addEventListener('toggle', function () { try { localStorage.setItem('brach-help', this.open ? 'auf' : 'zu'); } catch (e) {} });
   Array.prototype.forEach.call(document.querySelectorAll('details.grp'), function (d) {
@@ -643,6 +647,14 @@
 
   // ---------- Agraratlas (eine PMTiles-Datei mit Vektordaten des Ministeriums) ----------
   var HAS_AG = false;
+  // Antragsjahr aus den Merkmalen des Agraratlas lesen, statt es fest einzutragen
+  function agJahr() {
+    for (var i = 0; i < arguments.length; i++) {
+      var pr = arguments[i] && arguments[i].properties || {};
+      for (var k in pr) if (/jahr|year/i.test(k) && /^(19|20)\d\d/.test(String(pr[k]))) return ', Antrag ' + String(pr[k]).slice(0, 4);
+    }
+    return ', laut Agraratlas';
+  }
   try { if (window.pmtiles) { maplibregl.addProtocol('pmtiles', new pmtiles.Protocol().tile); HAS_AG = true; } } catch (e) {}
   var agLayers = HAS_AG ? [
     { id: 'ag-feucht', type: 'fill', source: 'agrar', 'source-layer': 'bdfl_l34_feucht_torfgebiete', layout: { visibility: 'none' }, paint: { 'fill-color': '#74d8f9', 'fill-opacity': 0.5 } },
@@ -969,6 +981,7 @@
     $('panel').classList.toggle('open', open);
     document.body.classList.toggle('sheet-open', open);
     $('toggle').textContent = open ? 'Karte zeigen' : 'Menü';
+    $('toggle').setAttribute('aria-expanded', open ? 'true' : 'false');
   }
 
   // ---------- Status-Punkte ----------
@@ -1340,17 +1353,26 @@
   var ZP_SRC = ['baup', 'baul', 'ubhalt', 'bimplan', 'strpl', 'strplf', 'verf', 'bausp'];
   var ZP_HEAD = ['Baustellen jetzt, nach Ende sortiert', 'Baustellen, die bald beginnen', 'Geplante Projekte, nach Jahr', 'Widmung im Verfahren'];
   var ZP_COL = ['#dc2626', '#f59e0b', '#2563eb', '#7c3aed'];
+  // Leere Koordinaten und GeometryCollection abfangen: Eine leere Box liegt nie im Ausschnitt
   function gBox(g) {
     var b = [180, 90, -180, -90];
-    (function walk(c) { if (typeof c[0] === 'number') { b[0] = Math.min(b[0], c[0]); b[1] = Math.min(b[1], c[1]); b[2] = Math.max(b[2], c[0]); b[3] = Math.max(b[3], c[1]); } else c.forEach(walk); })(g.coordinates);
+    (function walk(x) {
+      if (!x) return;
+      if (x.type === 'GeometryCollection') { (x.geometries || []).forEach(walk); return; }
+      (function w(c) { if (!Array.isArray(c) || !c.length) return; if (typeof c[0] === 'number') { b[0] = Math.min(b[0], c[0]); b[1] = Math.min(b[1], c[1]); b[2] = Math.max(b[2], c[0]); b[3] = Math.max(b[3], c[1]); } else c.forEach(w); })(x.coordinates);
+    })(g);
     return b;
   }
+  function gFirst(c) { while (Array.isArray(c) && Array.isArray(c[0])) c = c[0]; return Array.isArray(c) && typeof c[0] === 'number' ? c : null; }
   function gPoint(g) {
-    if (g.type === 'Point') return g.coordinates;
-    if (g.type === 'LineString') return g.coordinates[Math.floor(g.coordinates.length / 2)];
-    if (g.type === 'MultiLineString') { var l = g.coordinates[0]; return l[Math.floor(l.length / 2)]; }
+    if (!g) return null;
+    if (g.type === 'GeometryCollection') { var gs = g.geometries || []; for (var i = 0; i < gs.length; i++) { var p = gPoint(gs[i]); if (p) return p; } return null; }
+    var c0 = g.coordinates; if (!Array.isArray(c0) || !c0.length) return null;
+    if (g.type === 'Point') return c0;
+    if (g.type === 'LineString') return c0[Math.floor(c0.length / 2)];
+    if (g.type === 'MultiLineString') { var l = c0[0] || []; return l[Math.floor(l.length / 2)] || gFirst(c0); }
     var b = gBox(g), c = [(b[0] + b[2]) / 2, (b[1] + b[3]) / 2];
-    return inPoly(c, g) ? c : (g.type === 'Polygon' ? g.coordinates[0][0] : g.coordinates[0][0][0]);
+    return inPoly(c, g) ? c : gFirst(c0);
   }
   // Solange ein Eintrag offen ist, bleibt die Liste stehen, auch wenn die Karte zu ihm fährt
   var zpTimer = null, zpPin = false;
@@ -1410,7 +1432,7 @@
       det.appendChild(links);
     }
     map.getSource('sel').setData({ type: 'FeatureCollection', features: it.feats.map(function (f) { return { type: 'Feature', geometry: f.geometry, properties: {} }; }) });
-    var ll = gPoint(it.feats[0].geometry), bb = it.bb, mob = isMobile();
+    var bb = it.bb, ll = gPoint(it.feats[0].geometry) || [(bb[0] + bb[2]) / 2, (bb[1] + bb[3]) / 2], mob = isMobile();
     marker.setLngLat(ll).addTo(map);
     if (bb[2] - bb[0] > 0.0008 || bb[3] - bb[1] > 0.0008) {
       map.fitBounds([[bb[0], bb[1]], [bb[2], bb[3]]], { padding: mob ? { top: 40, bottom: Math.round(window.innerHeight * 0.66), left: 30, right: 30 } : 60, maxZoom: 17, duration: 900 });
@@ -1702,17 +1724,17 @@
       var y1 = new Date().getFullYear() - 1, y0 = y1 - 9;
       return fetchT('https://archive-api.open-meteo.com/v1/archive?latitude=' + lat.toFixed(3) + '&longitude=' + lng.toFixed(3) + '&start_date=' + y0 + '-01-01&end_date=' + y1 + '-12-31&daily=shortwave_radiation_sum,precipitation_sum,temperature_2m_min,temperature_2m_mean&timezone=Europe%2FVienna', 25000, s).then(json).then(function (j) {
         var d = j && j.daily; if (!d || !d.time || !d.time.length) throw new Error('keine Klimadaten');
-        var n = 0, rad = 0, pr = 0, tm = 0, frost = 0, last = {};
+        var n = 0, rad = 0, pr = 0, tm = 0, frost = 0, last = {}, summer = {};
         d.time.forEach(function (t, i) {
           var mn = d.temperature_2m_min[i];
           if (d.shortwave_radiation_sum[i] != null) rad += d.shortwave_radiation_sum[i];
           if (d.precipitation_sum[i] != null) pr += d.precipitation_sum[i];
           if (d.temperature_2m_mean[i] != null) { tm += d.temperature_2m_mean[i]; n++; }
-          if (mn != null && mn < 0) { frost++; if (t.slice(5) < '07-01') last[t.slice(0, 4)] = t.slice(5); }
+          if (mn != null && mn < 0) { frost++; var md = t.slice(5); if (md < '07-01') last[t.slice(0, 4)] = md; if (md >= '06-15' && md < '09-01') summer[t.slice(0, 4)] = 1; }
         });
         var yrs = (y1 - y0 + 1), lf = Object.keys(last).map(function (y) { return last[y]; }).sort();
         return { y0: y0, y1: y1, kwh: rad / 3.6 / yrs, mm: pr / yrs, temp: n ? tm / n : null, frost: frost / yrs,
-          lastMed: lf.length ? lf[Math.floor(lf.length / 2)] : '', lastMax: lf.length ? lf[lf.length - 1] : '', elev: j.elevation };
+          lastMed: lf.length ? lf[Math.floor(lf.length / 2)] : '', lastMax: lf.length ? lf[lf.length - 1] : '', summer: Object.keys(summer).length, elev: j.elevation };
       });
     });
   }
@@ -1777,7 +1799,7 @@
   function copyText(text, statusEl, okMsg) {
     var done = function (ok) {
       if (ok) { if (statusEl) statusEl.textContent = okMsg; return; }
-      $('copy-ta').value = text; $('copybox').hidden = false; $('copy-ta').focus(); $('copy-ta').select();
+      $('copy-ta').value = text; var cbx = $('copybox'); if (!cbx.open) { if (cbx.showModal) cbx.showModal(); else cbx.setAttribute('open', ''); } $('copy-ta').focus(); $('copy-ta').select();
     };
     var legacy = function () {
       var ta = document.createElement('textarea'); ta.value = text; ta.setAttribute('readonly', '');
@@ -1790,7 +1812,7 @@
       navigator.clipboard.writeText(text).then(function () { done(true); }, function () { done(legacy()); });
     } else { done(legacy()); }
   }
-  $('copy-close').addEventListener('click', function () { $('copybox').hidden = true; });
+  $('copy-close').addEventListener('click', function () { var cbx = $('copybox'); if (cbx.close) cbx.close(); else cbx.removeAttribute('open'); });
 
   // ---------- Klick: Grundstück und Links ----------
   var marker = new maplibregl.Marker({ color: '#00b8d4' });
@@ -1850,13 +1872,23 @@
   }
   // Gemeinde: Bürgermeister, Webseite und Bezirk aus Wikidata (über die Gemeindekennziffer), Gemeindeamt aus OpenStreetMap
   var gemWd = new Lru(50), gemTh = new Lru(50);
+  // Wikidata antwortet manchmal erst nach 20–40 Sekunden: Ergebnis 30 Tage im Browser merken, damit es nur einmal dauert
+  var WD_TTL = 30 * 864e5;
   function wdGemeinde(gkz, sig) {
+    var key = 'brach-wd-' + String(gkz).replace(/\D/g, '');
+    try { var c = JSON.parse(localStorage.getItem(key) || 'null'); if (c && Date.now() - c.t < WD_TTL) return Promise.resolve(c.v); } catch (e) {}
+    return wdGemeindeLoad(gkz, sig).then(function (v) {
+      try { localStorage.setItem(key, JSON.stringify({ t: Date.now(), v: v })); } catch (e) {}
+      return v;
+    });
+  }
+  function wdGemeindeLoad(gkz, sig) {
     var q = 'SELECT ?g ?gLabel ?web ?email ?phone ?mayorLabel ?start ?bezLabel ?bezweb WHERE { ?g wdt:P964 "' + String(gkz).replace(/\D/g, '') + '" . ' +
       'OPTIONAL { ?g wdt:P856 ?web } OPTIONAL { ?g wdt:P968 ?email } OPTIONAL { ?g wdt:P1329 ?phone } ' +
       'OPTIONAL { ?g p:P6 ?st . ?st ps:P6 ?mayor . OPTIONAL { ?st pq:P580 ?start } FILTER NOT EXISTS { ?st pq:P582 ?end } } ' +
       'OPTIONAL { ?g wdt:P131 ?bez . ?bez wdt:P31 wd:Q871419 . OPTIONAL { ?bez wdt:P856 ?bezweb } } ' +
       'SERVICE wikibase:label { bd:serviceParam wikibase:language "de,en". } }';
-    return fetchT('https://query.wikidata.org/sparql?format=json&query=' + encodeURIComponent(q), 20000, sig).then(json).then(function (j) {
+    return fetchT('https://query.wikidata.org/sparql?format=json&query=' + encodeURIComponent(q), 45000, sig).then(json).then(function (j) {
       var b = (j.results && j.results.bindings) || [], v = function (r, k) { return r[k] ? r[k].value : ''; };
       if (!b.length) return null;
       b.sort(function (x, y) { return v(y, 'start') < v(x, 'start') ? -1 : 1; });
@@ -1964,7 +1996,7 @@
         cur.kultur = String(sg.properties.snar_bezeichnung || '');
         cur.bio = bio ? 'ja' : 'nein';
         addRow(tbl, 'Kultur laut Förderantrag', cur.kultur + (isFinite(ha) ? ' · ' + ha.toFixed(2).replace('.', ',') + ' ha' : ''));
-        addRow(tbl, 'Biologisch bewirtschaftet', bio ? 'ja (ÖPUL Bio, Antrag 2025)' : 'nein');
+        addRow(tbl, 'Biologisch bewirtschaftet', bio ? 'ja (ÖPUL Bio' + agJahr(bio, sg) + ')' : 'nein');
       } else {
         addRow(tbl, 'Kultur laut Förderantrag', 'kein gemeldeter Schlag');
       }
@@ -2025,7 +2057,7 @@
       var cl = climaAt(cur.lng, cur.lat, sig);
       late('Sonne', cl, function (c) { return rund(c.kwh, 10) + ' kWh/m² Einstrahlung im Jahr (Mittel ' + c.y0 + '–' + c.y1 + ')'; }, box);
       late('Temperatur und Regen', cl, function (c) { return (c.temp != null ? 'Jahresmittel ' + c.temp.toFixed(1).replace('.', ',') + ' °C · ' : '') + rund(c.mm, 10) + ' mm Niederschlag im Jahr'; }, box);
-      late('Frost', cl, function (c) { return Math.round(c.frost) + ' Frosttage im Jahr' + (c.lastMed ? '; letzter Frost im Frühling meist um den ' + mmdd(c.lastMed) + ', spätestens ' + mmdd(c.lastMax) : ''); }, box);
+      late('Frost', cl, function (c) { return Math.round(c.frost) + ' Frosttage im Jahr' + (c.lastMed ? '; letzter Frost im Frühling meist um den ' + mmdd(c.lastMed) + ', spätestens ' + mmdd(c.lastMax) : '') + (c.summer ? '; Frost auch im Sommer (Mitte Juni bis August) in ' + c.summer + ' von ' + (c.y1 - c.y0 + 1) + ' Jahren' : ''); }, box);
       late('Grundwasser-Messstelle', gwNear(cur.lng, cur.lat, sig), function (g) {
         if (!g || g.d > 6000) return 'keine im Umkreis von 6 km';
         var p = g.p;
