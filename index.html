@@ -1855,7 +1855,7 @@
     return shared(adrCache, lng.toFixed(5) + ',' + lat.toFixed(5), sig, function (s) {
       return nomFetch('https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=18&addressdetails=1&accept-language=de&lat=' + lat + '&lon=' + lng, 15000, s).then(json).then(function (j) {
         var t = adrText(j && j.address);
-        return t ? { text: t, d: j.lat ? hav([lng, lat], [Number(j.lon), Number(j.lat)]) : 0, nr: !!(j.address && j.address.house_number) } : null;
+        return t ? { text: t, d: j.lat ? hav([lng, lat], [Number(j.lon), Number(j.lat)]) : 0, nr: !!(j.address && j.address.house_number), plz: String(j.address && j.address.postcode || '') } : null;
       });
     });
   }
@@ -2066,7 +2066,12 @@
     });
     if (cur.gkz) {
       section('gemeinde', 'Gemeinde und Ämter', function (box) {
-        var bz = bezOf(cur.gkz), gi = gemInfo(cur.gkz, bz && bz.wien ? '' : cur.gemeinde, cur.lng, cur.lat, sig);
+        var bz = bezOf(cur.gkz), gi = bz && bz.wien ? {
+          // Wien: Der Kataster nennt nur die Stadt (90001); den Bezirk liefert die Postleitzahl (1120 → 91201)
+          wd: reverseAdr(cur.lng, cur.lat, sig).catch(function (e) { if (isAbort(e)) throw e; return null; }).then(function (v) {
+            var m = /^1(0[1-9]|1\d|2[0-3])0$/.exec(v && v.plz || '');
+            return gemInfo(m ? '9' + m[1] + '01' : cur.gkz, '', cur.lng, cur.lat, sig).wd;
+          }), th: Promise.resolve(null) } : gemInfo(cur.gkz, cur.gemeinde, cur.lng, cur.lat, sig);
         if (!(bz && bz.wien)) late('Gemeindeamt', gi.th, function (t) {
           if (!t) return { t: 'nicht in OpenStreetMap gefunden', a: [['Websuche', 'https://www.google.com/search?q=' + encodeURIComponent('Gemeindeamt ' + (cur.gemeinde || '') + ' Öffnungszeiten')]] };
           return { t: [t.name, t.adr, t.hours ? 'geöffnet ' + t.hours : ''].filter(Boolean).join(' · '), a: [t.phone ? [t.phone, telHref(t.phone)] : null, t.email ? [t.email, 'mailto:' + t.email] : null, t.web && webHref(t.web) ? ['Webseite', webHref(t.web)] : null] };
