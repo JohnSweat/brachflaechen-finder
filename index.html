@@ -12,6 +12,7 @@
 <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" integrity="sha384-MinO0mNliZ3vwppuPOUnGa+iq619pfMhLVUXfC4LHwSCvF9H+6P/KO4Q7qBOYV5V" crossorigin="anonymous">
 <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js" integrity="sha384-SYKAG6cglRMN0RVvhNeBY0r3FYKNOJtznwA0v7B5Vp9tr31xAHsZC0DqkQ/pZDmj" crossorigin="anonymous"></script>
 <script src="https://unpkg.com/pmtiles@3.2.1/dist/pmtiles.js" integrity="sha384-QfbOCebHNw8pQiPAOd2IFee2v2A5VYZxBk0+JGZ5H+3mfzVIp6zsQNkTsfGJot93" crossorigin="anonymous"></script>
+<script src="lib.js"></script>
 <style>
   :root {
     --bg: #f6f4ef; --panel: #fffdf8; --ink: #1f2a24; --muted: #5d6a62; --line: #ddd8cc;
@@ -71,8 +72,10 @@
   .tag.w { background: #f6efc4; color: #6a5a07; }
   .tag.b { background: #eadcff; color: #4c1d95; }
   .tag.n { background: #c62828; color: #fff; }
-  #copybox { position: fixed; inset: 0; z-index: 20; background: rgba(0,0,0,.45); display: grid; place-items: center; padding: 16px; }
-  #copybox[hidden] { display: none; }
+  #copybox { border: 0; padding: 0; background: transparent; color: inherit; max-width: calc(100vw - 32px); }
+  #copybox::backdrop { background: rgba(0,0,0,.45); }
+  #copybox:not([open]) { display: none; }
+  #copybox[open]:not(:modal) { position: fixed; inset: 0; margin: auto; z-index: 20; }
   #copybox .cb { background: var(--panel); border-radius: 12px; padding: 14px; width: min(520px, 100%); }
   #copybox p { margin: 0 0 8px; font-size: 14px; }
   #results { display: grid; gap: 4px; margin-top: 6px; }
@@ -142,7 +145,7 @@
 <div id="app">
   <aside id="panel">
     <h1>Brachflächen-Finder</h1>
-    <p class="sub">Verwilderte Grundstücke in Österreich am Bildschirm aufspüren: Luftbild, Kataster, Agrarförderung und Street View in einer Karte; in Wien auch Öffis, Widmung, Planungen und Energieanlagen. <span class="ver">Stand 24.11.2026</span></p>
+    <p class="sub">Verwilderte Grundstücke in Österreich am Bildschirm aufspüren: Luftbild, Kataster, Agrarförderung und Street View in einer Karte; in Wien auch Öffis, Widmung, Planungen und Energieanlagen. <span class="ver" id="ver">Stand 24.11.2026</span></p>
     <div class="warn" id="offline" hidden><b>Das ist eine gespeicherte Kopie der Seite.</b> Als Datei geöffnet fehlen Grundstücksdaten und Kopieren, und neue Funktionen kommen nicht an. Bitte die Seite über den Link öffnen und dort zum Startbildschirm hinzufügen.<br><a class="btn" href="https://johnsweat.github.io/brachflaechen-finder/">Aktuelle Seite öffnen</a></div>
 
     <details class="card grp" id="help" open>
@@ -509,8 +512,8 @@
     <div id="fatal"><div><strong>Die Kartenbibliothek konnte nicht geladen werden.</strong><br>Die Seite braucht eine Internetverbindung und muss direkt im Browser geöffnet sein, nicht in einer Vorschau.</div></div>
   </main>
 </div>
-<div id="copybox" hidden><div class="cb"><p>Automatisches Kopieren hat nicht geklappt. Der Text ist markiert, bitte von Hand kopieren:</p><textarea id="copy-ta" rows="7" readonly></textarea><div class="links"><button type="button" id="copy-close">Schließen</button></div></div></div>
-<button id="toggle" type="button">Menü</button>
+<dialog id="copybox" aria-labelledby="copy-h"><div class="cb"><p id="copy-h">Automatisches Kopieren hat nicht geklappt. Der Text ist markiert, bitte von Hand kopieren:</p><textarea id="copy-ta" rows="7" readonly></textarea><div class="links"><button type="button" id="copy-close">Schließen</button></div></div></dialog>
+<button id="toggle" type="button" aria-controls="panel" aria-expanded="false">Menü</button>
 
 <script>
 (function () {
@@ -518,6 +521,8 @@
   var $ = function (id) { return document.getElementById(id); };
   // Als Datei geöffnet (Download, Dateimanager am Handy): Hinweis auf die aktuelle Seite
   if (!/^https?:$/.test(location.protocol)) $('offline').hidden = false;
+  // Stand = letzte Veröffentlichung (Last-Modified von GitHub Pages)
+  (function () { var d = new Date(document.lastModified); if (location.protocol !== 'file:' && !isNaN(d) && Date.now() - d > 6e4) $('ver').textContent = 'Stand ' + d.getDate() + '.' + (d.getMonth() + 1) + '.' + d.getFullYear(); })();
   try { if (localStorage.getItem('brach-help') === 'zu') $('help').open = false; } catch (e) {}
   $('help').addEventListener('toggle', function () { try { localStorage.setItem('brach-help', this.open ? 'auf' : 'zu'); } catch (e) {} });
   Array.prototype.forEach.call(document.querySelectorAll('details.grp'), function (d) {
@@ -548,29 +553,8 @@
     41: { name: 'Gebäude', color: '#c9667a', op: 0.6 }
   };
 
-  // Bezirke Niederösterreichs nach den ersten drei Stellen der Gemeindekennziffer:
-  // [Name, Pfad bei willhaben, Sitz der zuständigen Grundverkehrsbehörde laut Land NÖ]
-  var NOE_BEZ = {
-    301: ['Krems an der Donau (Stadt)', 'krems-an-der-donau', 'Waidhofen an der Thaya'], 302: ['St. Pölten (Stadt)', 'sankt-poelten', 'Lilienfeld'],
-    303: ['Waidhofen an der Ybbs (Stadt)', 'waidhofen-an-der-ybbs', 'Melk'], 304: ['Wiener Neustadt (Stadt)', 'wiener-neustadt', 'Bruck an der Leitha'],
-    305: ['Amstetten', 'amstetten', 'Melk'], 306: ['Baden', 'baden', 'Bruck an der Leitha'], 307: ['Bruck an der Leitha', 'bruck-an-der-leitha', 'Bruck an der Leitha'],
-    308: ['Gänserndorf', 'gaenserndorf', 'Hollabrunn'], 309: ['Gmünd', 'gmuend', 'Waidhofen an der Thaya'], 310: ['Hollabrunn', 'hollabrunn', 'Hollabrunn'],
-    311: ['Horn', 'horn', 'Waidhofen an der Thaya'], 312: ['Korneuburg', 'korneuburg', 'Hollabrunn'], 313: ['Krems-Land', 'krems-land', 'Waidhofen an der Thaya'],
-    314: ['Lilienfeld', 'lilienfeld', 'Lilienfeld'], 315: ['Melk', 'melk', 'Melk'], 316: ['Mistelbach', 'mistelbach', 'Hollabrunn'],
-    317: ['Mödling', 'moedling', 'Bruck an der Leitha'], 318: ['Neunkirchen', 'neunkirchen', 'Bruck an der Leitha'], 319: ['St. Pölten-Land', 'sankt-poelten-land', 'Lilienfeld'],
-    320: ['Scheibbs', 'scheibbs', 'Melk'], 321: ['Tulln', 'tulln', 'Lilienfeld'], 322: ['Waidhofen an der Thaya', 'waidhofen-an-der-thaya', 'Waidhofen an der Thaya'],
-    323: ['Wiener Neustadt-Land', 'wiener-neustadt-land', 'Bruck an der Leitha'], 325: ['Zwettl', 'zwettl', 'Waidhofen an der Thaya']
-  };
-  // Bundesland nach der ersten Stelle der Gemeindekennziffer: [Name, Pfad bei willhaben, Landes-GIS für die Widmung]
-  var BUNDESLAND = {
-    1: ['Burgenland', 'burgenland', 'GeoDaten Burgenland', 'https://geodaten.bgld.gv.at/'], 2: ['Kärnten', 'kaernten', 'KAGIS', 'https://kagis.ktn.gv.at/'],
-    3: ['Niederösterreich', 'niederoesterreich', 'NÖ Atlas', 'https://atlas.noe.gv.at/'], 4: ['Oberösterreich', 'oberoesterreich', 'DORIS', 'https://www.doris.at/'],
-    5: ['Salzburg', 'salzburg', 'SAGIS', 'https://www.salzburg.gv.at/sagis'], 6: ['Steiermark', 'steiermark', 'GIS-Steiermark', 'https://gis.stmk.gv.at/'],
-    7: ['Tirol', 'tirol', 'tiris', 'https://maps.tirol.gv.at/'], 8: ['Vorarlberg', 'vorarlberg', 'VoGIS', 'https://vogis.cnv.at/atlas/'],
-    9: ['Wien', 'wien', 'Flächenwidmung Wien', 'https://www.wien.gv.at/flaechenwidmung/public/']
-  };
-  function landOf(gkz) { var d = String(gkz || '').replace(/\D/g, '').charAt(0), l = String(gkz || '').replace(/\D/g, '').length === 5 && BUNDESLAND[d]; return l ? { code: Number(d), name: l[0], wh: l[1], gis: l[2], gisUrl: l[3] } : null; }
-  function bezOf(gkz) { var c = Math.floor(Number(gkz) / 100); return NOE_BEZ[c] ? { code: c, name: NOE_BEZ[c][0], wh: 'niederoesterreich/' + NOE_BEZ[c][1], gv: NOE_BEZ[c][2] } : c >= 900 && c < 1000 ? { code: c, name: 'Wien', wh: 'wien', wien: true } : null; }
+  // Bezirke, Bundesländer und Geometrie liegen in lib.js (dort auch getestet)
+  var NOE_BEZ = BF.NOE_BEZ, BUNDESLAND = BF.BUNDESLAND, landOf = BF.landOf, bezOf = BF.bezOf;
   var NS_NAME = { 40: 'Landwirtschaftlich genutzte Grundfläche', 41: 'Gebäude', 42: 'Parkplatz', 48: 'Acker, Wiese oder Weide', 52: 'Garten', 53: 'Weingarten', 54: 'Alpe', 55: 'Krummholzfläche', 56: 'Wald', 57: 'Verbuschte Fläche', 58: 'Forststraße', 59: 'Fließendes Gewässer', 60: 'Stehendes Gewässer', 61: 'Feuchtgebiet', 62: 'Vegetationsarme Fläche', 63: 'Betriebsfläche', 64: 'Gewässerrandfläche', 65: 'Verkehrsrandfläche', 72: 'Friedhof', 83: 'Gebäudenebenfläche', 84: 'Abbaufläche, Halde oder Deponie', 87: 'Fels- und Geröllfläche', 88: 'Gletscher', 92: 'Schienenverkehrsanlage', 95: 'Straßenverkehrsanlage', 96: 'Freizeitfläche' };
 
   // ---------- Bodenkarte eBOD (BFW): Klassen und Farben wie auf bodenkarte.at ----------
@@ -643,6 +627,14 @@
 
   // ---------- Agraratlas (eine PMTiles-Datei mit Vektordaten des Ministeriums) ----------
   var HAS_AG = false;
+  // Antragsjahr aus den Merkmalen des Agraratlas lesen, statt es fest einzutragen
+  function agJahr() {
+    for (var i = 0; i < arguments.length; i++) {
+      var pr = arguments[i] && arguments[i].properties || {};
+      for (var k in pr) if (/jahr|year/i.test(k) && /^(19|20)\d\d/.test(String(pr[k]))) return ', Antrag ' + String(pr[k]).slice(0, 4);
+    }
+    return ', laut Agraratlas';
+  }
   try { if (window.pmtiles) { maplibregl.addProtocol('pmtiles', new pmtiles.Protocol().tile); HAS_AG = true; } } catch (e) {}
   var agLayers = HAS_AG ? [
     { id: 'ag-feucht', type: 'fill', source: 'agrar', 'source-layer': 'bdfl_l34_feucht_torfgebiete', layout: { visibility: 'none' }, paint: { 'fill-color': '#74d8f9', 'fill-opacity': 0.5 } },
@@ -969,6 +961,7 @@
     $('panel').classList.toggle('open', open);
     document.body.classList.toggle('sheet-open', open);
     $('toggle').textContent = open ? 'Karte zeigen' : 'Menü';
+    $('toggle').setAttribute('aria-expanded', open ? 'true' : 'false');
   }
 
   // ---------- Status-Punkte ----------
@@ -1340,18 +1333,7 @@
   var ZP_SRC = ['baup', 'baul', 'ubhalt', 'bimplan', 'strpl', 'strplf', 'verf', 'bausp'];
   var ZP_HEAD = ['Baustellen jetzt, nach Ende sortiert', 'Baustellen, die bald beginnen', 'Geplante Projekte, nach Jahr', 'Widmung im Verfahren'];
   var ZP_COL = ['#dc2626', '#f59e0b', '#2563eb', '#7c3aed'];
-  function gBox(g) {
-    var b = [180, 90, -180, -90];
-    (function walk(c) { if (typeof c[0] === 'number') { b[0] = Math.min(b[0], c[0]); b[1] = Math.min(b[1], c[1]); b[2] = Math.max(b[2], c[0]); b[3] = Math.max(b[3], c[1]); } else c.forEach(walk); })(g.coordinates);
-    return b;
-  }
-  function gPoint(g) {
-    if (g.type === 'Point') return g.coordinates;
-    if (g.type === 'LineString') return g.coordinates[Math.floor(g.coordinates.length / 2)];
-    if (g.type === 'MultiLineString') { var l = g.coordinates[0]; return l[Math.floor(l.length / 2)]; }
-    var b = gBox(g), c = [(b[0] + b[2]) / 2, (b[1] + b[3]) / 2];
-    return inPoly(c, g) ? c : (g.type === 'Polygon' ? g.coordinates[0][0] : g.coordinates[0][0][0]);
-  }
+  var gBox = BF.gBox, gFirst = BF.gFirst, gPoint = BF.gPoint;
   // Solange ein Eintrag offen ist, bleibt die Liste stehen, auch wenn die Karte zu ihm fährt
   var zpTimer = null, zpPin = false;
   function zpSoon(force) { if (zpPin && !force) return; if (force) zpPin = false; clearTimeout(zpTimer); zpTimer = setTimeout(zpRender, 200); }
@@ -1410,7 +1392,7 @@
       det.appendChild(links);
     }
     map.getSource('sel').setData({ type: 'FeatureCollection', features: it.feats.map(function (f) { return { type: 'Feature', geometry: f.geometry, properties: {} }; }) });
-    var ll = gPoint(it.feats[0].geometry), bb = it.bb, mob = isMobile();
+    var bb = it.bb, ll = gPoint(it.feats[0].geometry) || [(bb[0] + bb[2]) / 2, (bb[1] + bb[3]) / 2], mob = isMobile();
     marker.setLngLat(ll).addTo(map);
     if (bb[2] - bb[0] > 0.0008 || bb[3] - bb[1] > 0.0008) {
       map.fitBounds([[bb[0], bb[1]], [bb[2], bb[3]]], { padding: mob ? { top: 40, bottom: Math.round(window.innerHeight * 0.66), left: 30, right: 30 } : 60, maxZoom: 17, duration: 900 });
@@ -1450,46 +1432,7 @@
   }
 
   // ---------- Rechen-Helfer ----------
-  var R_EARTH = 6371008.8, RAD = Math.PI / 180;
-  function hav(a, b) {
-    var s = Math.sin((b[1] - a[1]) * RAD / 2), t = Math.sin((b[0] - a[0]) * RAD / 2);
-    return 2 * R_EARTH * Math.asin(Math.sqrt(s * s + Math.cos(a[1] * RAD) * Math.cos(b[1] * RAD) * t * t));
-  }
-  function polys(geom) { return geom.type === 'Polygon' ? [geom.coordinates] : geom.type === 'MultiPolygon' ? geom.coordinates : []; }
-  // Fläche in m² und Schwerpunkt eines Polygons in Längen-/Breitengraden
-  function areaCentroid(geom) {
-    var A = 0, cx = 0, cy = 0;
-    polys(geom).forEach(function (poly) {
-      poly.forEach(function (ring, ri) {
-        var a = 0, x = 0, y = 0;
-        for (var i = 0, j = ring.length - 1; i < ring.length; j = i++) {
-          var f = ring[j][0] * ring[i][1] - ring[i][0] * ring[j][1];
-          a += f; x += (ring[j][0] + ring[i][0]) * f; y += (ring[j][1] + ring[i][1]) * f;
-        }
-        a /= 2; if (!a) return;
-        var s = Math.abs(a) * (ri === 0 ? 1 : -1);
-        A += s; cx += x / (6 * a) * s; cy += y / (6 * a) * s;
-      });
-    });
-    if (A <= 0) return null;
-    var lat = cy / A;
-    return { area: A * RAD * RAD * R_EARTH * R_EARTH * Math.cos(lat * RAD), c: [cx / A, lat] };
-  }
-  function inPoly(pt, geom) {
-    return polys(geom).some(function (poly) {
-      var inside = false;
-      poly.forEach(function (ring, ri) {
-        var c = false;
-        for (var i = 0, j = ring.length - 1; i < ring.length; j = i++) {
-          if ((ring[i][1] > pt[1]) !== (ring[j][1] > pt[1]) &&
-              pt[0] < (ring[j][0] - ring[i][0]) * (pt[1] - ring[i][1]) / (ring[j][1] - ring[i][1]) + ring[i][0]) c = !c;
-        }
-        if (ri === 0) inside = c; else if (c) inside = false;
-      });
-      return inside;
-    });
-  }
-  function merc(lng, lat) { return [lng * 20037508.34 / 180, Math.log(Math.tan((90 + lat) * Math.PI / 360)) / RAD * 20037508.34 / 180]; }
+  var R_EARTH = BF.R_EARTH, RAD = BF.RAD, hav = BF.hav, polys = BF.polys, areaCentroid = BF.areaCentroid, inPoly = BF.inPoly, merc = BF.merc;
   function fmtM(d) { return d === Infinity || d == null ? '–' : d < 1000 ? Math.round(d / 10) * 10 + ' m' : (d / 1000).toFixed(1).replace('.', ',') + ' km'; }
   function fmtA(a) { return Math.round(a).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.') + ' m²'; }
   function num(id) { var v = parseFloat(String($(id).value).replace(',', '.')); return isFinite(v) && v > 0 ? v : null; }
@@ -1702,17 +1645,17 @@
       var y1 = new Date().getFullYear() - 1, y0 = y1 - 9;
       return fetchT('https://archive-api.open-meteo.com/v1/archive?latitude=' + lat.toFixed(3) + '&longitude=' + lng.toFixed(3) + '&start_date=' + y0 + '-01-01&end_date=' + y1 + '-12-31&daily=shortwave_radiation_sum,precipitation_sum,temperature_2m_min,temperature_2m_mean&timezone=Europe%2FVienna', 25000, s).then(json).then(function (j) {
         var d = j && j.daily; if (!d || !d.time || !d.time.length) throw new Error('keine Klimadaten');
-        var n = 0, rad = 0, pr = 0, tm = 0, frost = 0, last = {};
+        var n = 0, rad = 0, pr = 0, tm = 0, frost = 0, last = {}, summer = {};
         d.time.forEach(function (t, i) {
           var mn = d.temperature_2m_min[i];
           if (d.shortwave_radiation_sum[i] != null) rad += d.shortwave_radiation_sum[i];
           if (d.precipitation_sum[i] != null) pr += d.precipitation_sum[i];
           if (d.temperature_2m_mean[i] != null) { tm += d.temperature_2m_mean[i]; n++; }
-          if (mn != null && mn < 0) { frost++; if (t.slice(5) < '07-01') last[t.slice(0, 4)] = t.slice(5); }
+          if (mn != null && mn < 0) { frost++; var md = t.slice(5); if (md < '07-01') last[t.slice(0, 4)] = md; if (md >= '06-15' && md < '09-01') summer[t.slice(0, 4)] = 1; }
         });
         var yrs = (y1 - y0 + 1), lf = Object.keys(last).map(function (y) { return last[y]; }).sort();
         return { y0: y0, y1: y1, kwh: rad / 3.6 / yrs, mm: pr / yrs, temp: n ? tm / n : null, frost: frost / yrs,
-          lastMed: lf.length ? lf[Math.floor(lf.length / 2)] : '', lastMax: lf.length ? lf[lf.length - 1] : '', elev: j.elevation };
+          lastMed: lf.length ? lf[Math.floor(lf.length / 2)] : '', lastMax: lf.length ? lf[lf.length - 1] : '', summer: Object.keys(summer).length, elev: j.elevation };
       });
     });
   }
@@ -1748,8 +1691,7 @@
   }
 
   // Waldentwicklungsplan am Punkt: Funktionsflächen mit Leitfunktion und Wertziffer (Schutz, Wohlfahrt, Erholung)
-  var WEP_STUFE = { 0: 'keine besondere', 1: 'gering', 2: 'mittel', 3: 'hoch' };
-  function wepStufe(d) { return WEP_STUFE[d] || 'unbekannt (' + d + ')'; }
+  var WEP_STUFE = BF.WEP_STUFE, wepStufe = BF.wepStufe;
   function wepAt(lng, lat, sig) {
     var c = merc(lng, lat), r = 2, bb = [c[0] - r, c[1] - r, c[0] + r, c[1] + r];
     var url = WEP_WMS + '?service=WMS&version=1.3.0&request=GetFeatureInfo&layers=' + encodeURIComponent(WEP_LAYER) + '&query_layers=' + encodeURIComponent(WEP_LAYER) +
@@ -1777,7 +1719,7 @@
   function copyText(text, statusEl, okMsg) {
     var done = function (ok) {
       if (ok) { if (statusEl) statusEl.textContent = okMsg; return; }
-      $('copy-ta').value = text; $('copybox').hidden = false; $('copy-ta').focus(); $('copy-ta').select();
+      $('copy-ta').value = text; var cbx = $('copybox'); if (!cbx.open) { if (cbx.showModal) cbx.showModal(); else cbx.setAttribute('open', ''); } $('copy-ta').focus(); $('copy-ta').select();
     };
     var legacy = function () {
       var ta = document.createElement('textarea'); ta.value = text; ta.setAttribute('readonly', '');
@@ -1790,7 +1732,7 @@
       navigator.clipboard.writeText(text).then(function () { done(true); }, function () { done(legacy()); });
     } else { done(legacy()); }
   }
-  $('copy-close').addEventListener('click', function () { $('copybox').hidden = true; });
+  $('copy-close').addEventListener('click', function () { var cbx = $('copybox'); if (cbx.close) cbx.close(); else cbx.removeAttribute('open'); });
 
   // ---------- Klick: Grundstück und Links ----------
   var marker = new maplibregl.Marker({ color: '#00b8d4' });
@@ -1833,7 +1775,7 @@
     return shared(adrCache, lng.toFixed(5) + ',' + lat.toFixed(5), sig, function (s) {
       return nomFetch('https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=18&addressdetails=1&accept-language=de&lat=' + lat + '&lon=' + lng, 15000, s).then(json).then(function (j) {
         var t = adrText(j && j.address);
-        return t ? { text: t, d: j.lat ? hav([lng, lat], [Number(j.lon), Number(j.lat)]) : 0, nr: !!(j.address && j.address.house_number) } : null;
+        return t ? { text: t, d: j.lat ? hav([lng, lat], [Number(j.lon), Number(j.lat)]) : 0, nr: !!(j.address && j.address.house_number), plz: String(j.address && j.address.postcode || '') } : null;
       });
     });
   }
@@ -1850,13 +1792,23 @@
   }
   // Gemeinde: Bürgermeister, Webseite und Bezirk aus Wikidata (über die Gemeindekennziffer), Gemeindeamt aus OpenStreetMap
   var gemWd = new Lru(50), gemTh = new Lru(50);
+  // Wikidata antwortet manchmal erst nach 20–40 Sekunden: Ergebnis 30 Tage im Browser merken, damit es nur einmal dauert
+  var WD_TTL = 30 * 864e5;
   function wdGemeinde(gkz, sig) {
+    var key = 'brach-wd-' + String(gkz).replace(/\D/g, '');
+    try { var c = JSON.parse(localStorage.getItem(key) || 'null'); if (c && Date.now() - c.t < WD_TTL) return Promise.resolve(c.v); } catch (e) {}
+    return wdGemeindeLoad(gkz, sig).then(function (v) {
+      try { localStorage.setItem(key, JSON.stringify({ t: Date.now(), v: v })); } catch (e) {}
+      return v;
+    });
+  }
+  function wdGemeindeLoad(gkz, sig) {
     var q = 'SELECT ?g ?gLabel ?web ?email ?phone ?mayorLabel ?start ?bezLabel ?bezweb WHERE { ?g wdt:P964 "' + String(gkz).replace(/\D/g, '') + '" . ' +
       'OPTIONAL { ?g wdt:P856 ?web } OPTIONAL { ?g wdt:P968 ?email } OPTIONAL { ?g wdt:P1329 ?phone } ' +
       'OPTIONAL { ?g p:P6 ?st . ?st ps:P6 ?mayor . OPTIONAL { ?st pq:P580 ?start } FILTER NOT EXISTS { ?st pq:P582 ?end } } ' +
       'OPTIONAL { ?g wdt:P131 ?bez . ?bez wdt:P31 wd:Q871419 . OPTIONAL { ?bez wdt:P856 ?bezweb } } ' +
       'SERVICE wikibase:label { bd:serviceParam wikibase:language "de,en". } }';
-    return fetchT('https://query.wikidata.org/sparql?format=json&query=' + encodeURIComponent(q), 20000, sig).then(json).then(function (j) {
+    return fetchT('https://query.wikidata.org/sparql?format=json&query=' + encodeURIComponent(q), 45000, sig).then(json).then(function (j) {
       var b = (j.results && j.results.bindings) || [], v = function (r, k) { return r[k] ? r[k].value : ''; };
       if (!b.length) return null;
       b.sort(function (x, y) { return v(y, 'start') < v(x, 'start') ? -1 : 1; });
@@ -1964,7 +1916,7 @@
         cur.kultur = String(sg.properties.snar_bezeichnung || '');
         cur.bio = bio ? 'ja' : 'nein';
         addRow(tbl, 'Kultur laut Förderantrag', cur.kultur + (isFinite(ha) ? ' · ' + ha.toFixed(2).replace('.', ',') + ' ha' : ''));
-        addRow(tbl, 'Biologisch bewirtschaftet', bio ? 'ja (ÖPUL Bio, Antrag 2025)' : 'nein');
+        addRow(tbl, 'Biologisch bewirtschaftet', bio ? 'ja (ÖPUL Bio' + agJahr(bio, sg) + ')' : 'nein');
       } else {
         addRow(tbl, 'Kultur laut Förderantrag', 'kein gemeldeter Schlag');
       }
@@ -2025,7 +1977,7 @@
       var cl = climaAt(cur.lng, cur.lat, sig);
       late('Sonne', cl, function (c) { return rund(c.kwh, 10) + ' kWh/m² Einstrahlung im Jahr (Mittel ' + c.y0 + '–' + c.y1 + ')'; }, box);
       late('Temperatur und Regen', cl, function (c) { return (c.temp != null ? 'Jahresmittel ' + c.temp.toFixed(1).replace('.', ',') + ' °C · ' : '') + rund(c.mm, 10) + ' mm Niederschlag im Jahr'; }, box);
-      late('Frost', cl, function (c) { return Math.round(c.frost) + ' Frosttage im Jahr' + (c.lastMed ? '; letzter Frost im Frühling meist um den ' + mmdd(c.lastMed) + ', spätestens ' + mmdd(c.lastMax) : ''); }, box);
+      late('Frost', cl, function (c) { return Math.round(c.frost) + ' Frosttage im Jahr' + (c.lastMed ? '; letzter Frost im Frühling meist um den ' + mmdd(c.lastMed) + ', spätestens ' + mmdd(c.lastMax) : '') + (c.summer ? '; Frost auch im Sommer (Mitte Juni bis August) in ' + c.summer + ' von ' + (c.y1 - c.y0 + 1) + ' Jahren' : ''); }, box);
       late('Grundwasser-Messstelle', gwNear(cur.lng, cur.lat, sig), function (g) {
         if (!g || g.d > 6000) return 'keine im Umkreis von 6 km';
         var p = g.p;
@@ -2034,7 +1986,11 @@
     });
     if (cur.gkz) {
       section('gemeinde', 'Gemeinde und Ämter', function (box) {
-        var bz = bezOf(cur.gkz), gi = gemInfo(cur.gkz, bz && bz.wien ? '' : cur.gemeinde, cur.lng, cur.lat, sig);
+        var bz = bezOf(cur.gkz), gi = bz && bz.wien ? {
+          // Wien: Der Kataster nennt nur die Stadt (90001); den Bezirk liefert die Postleitzahl (1120 → 91201)
+          wd: reverseAdr(cur.lng, cur.lat, sig).catch(function (e) { if (isAbort(e)) throw e; return null; }).then(function (v) {
+            return gemInfo(BF.wienBezGkz(v && v.plz) || cur.gkz, '', cur.lng, cur.lat, sig).wd;
+          }), th: Promise.resolve(null) } : gemInfo(cur.gkz, cur.gemeinde, cur.lng, cur.lat, sig);
         if (!(bz && bz.wien)) late('Gemeindeamt', gi.th, function (t) {
           if (!t) return { t: 'nicht in OpenStreetMap gefunden', a: [['Websuche', 'https://www.google.com/search?q=' + encodeURIComponent('Gemeindeamt ' + (cur.gemeinde || '') + ' Öffnungszeiten')]] };
           return { t: [t.name, t.adr, t.hours ? 'geöffnet ' + t.hours : ''].filter(Boolean).join(' · '), a: [t.phone ? [t.phone, telHref(t.phone)] : null, t.email ? [t.email, 'mailto:' + t.email] : null, t.web && webHref(t.web) ? ['Webseite', webHref(t.web)] : null] };
@@ -2227,9 +2183,7 @@
     setTimeout(function () { b.textContent = 'Merken'; }, 2500);
   });
   // Nummern als Text ausgeben, sonst macht Excel aus "01704" 1704 und aus "12/3" ein Datum
-  // Text, der mit = + - @ oder Tab beginnt, würde Excel als Formel ausführen: mit Apostroph als Text markieren
-  function noFormula(v) { var s = v == null ? '' : String(v); return /^[=+\-@\t\r]/.test(s) ? "'" + s : s; }
-  function asText(v) { return v ? '="' + String(v).replace(/"/g, '') + '"' : ''; }
+  var noFormula = BF.noFormula, asText = BF.asText;
   function merkRows() {
     var rows = [['Katastralgemeinde', 'KG-Nummer', 'Grundstück', 'Einlagezahl', 'Adresse', 'Gemeinde', 'Nutzung', 'Widmung (Wien)', 'Kultur', 'Bio', 'Status', 'Notiz', 'Koordinaten', 'Gemerkt am', 'Google Maps']];
     merk.forEach(function (o) { rows.push([noFormula(o.kg), asText(o.kgnr), asText(o.gnr), asText(o.ez), noFormula(o.adresse), noFormula(o.gemeinde), noFormula(o.nutzung), noFormula(o.widmung), noFormula(o.kultur), noFormula(o.bio), noFormula(o.status), noFormula(o.note), o.lat + ', ' + o.lng, o.ts, 'https://www.google.com/maps/search/?api=1&query=' + o.lat + ',' + o.lng]); });
@@ -2264,7 +2218,7 @@
   function insSave() { try { localStorage.setItem('brach-ins', JSON.stringify(ins)); return true; } catch (e) { return false; } }
   function insFind(id) { for (var i = 0; i < ins.length; i++) if (ins[i].id === id) return ins[i]; return null; }
   // Nur echte Webadressen als Link übernehmen
-  function safeUrl(u) { u = String(u || '').trim(); if (!u) return ''; if (!/^https?:\/\//i.test(u)) u = 'https://' + u; try { var x = new URL(u); return /^https?:$/.test(x.protocol) ? x.href : ''; } catch (e) { return ''; } }
+  var safeUrl = BF.safeUrl;
   function insRender() {
     var box = $('ins-list'); box.textContent = '';
     $('ins-count').textContent = ins.length ? '(' + ins.length + ')' : '';
