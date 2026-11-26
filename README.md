@@ -7,3 +7,13 @@ Seite öffnen: https://johnsweat.github.io/brachflaechen-finder/
 Am Handy: Seite über den Link öffnen und im Browsermenü „Zum Startbildschirm hinzufügen“ wählen. Eine heruntergeladene Datei ist eine alte Kopie; dort fehlen Grundstücksdaten und Kopieren.
 
 Alle Daten ohne Gewähr. Quellen: basemap.at, BEV, Agrarmarkt Austria, BMLUK (Agraratlas), Umweltbundesamt, Esri World Imagery Wayback, OpenStreetMap (Ortssuche und Adressen über Nominatim; Bahnhöfe, Haltestellen und Wald über OpenFreeMap / OpenMapTiles), Stadt Wien – data.wien.gv.at (Öffi-Netz, Mobilität, Rad, Parken, Planungen, Widmung, Realnutzung, Energieanlagen, Luftbilder), WienMobil Rad über den GBFS-Feed von nextbike (CC0), Lärmkarten über inspire.gv.at, Breitbandatlas (breitbandatlas.gv.at).
+
+## Aufbau und Tests
+
+`index.html` enthält Oberfläche und Kartenlogik. Reine Rechenfunktionen (Bundesland und Bezirk aus der Gemeindekennziffer, Wiener Bezirk aus der Postleitzahl, Geometrie, Schutz gegen Excel-Formeln, Link-Prüfung, WEP-Stufen) liegen in `lib.js`. Die Tests laufen ohne Abhängigkeiten mit Node 22:
+
+```
+node --test test/*.test.js
+```
+
+Auf GitHub laufen sie bei jedem Push auf `main` und bei jedem Pull Request.
